@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: diving-analytics-config
+data:
+  APP_NAME: "Diving Analytics Platform"
+  LOG_LEVEL: "info"
+  PORT: "3000"
