@@ -6,9 +6,17 @@ resource "azurerm_resource_group" "main" {
   location = var.location
 }
 
+resource "random_string" "acr_suffix" {
+  count   = var.cloud_provider == "azure" ? 1 : 0
+  length  = 6
+  special = false
+  upper   = false
+}
+
 resource "azurerm_container_registry" "acr" {
   count               = var.cloud_provider == "azure" ? 1 : 0
-  name                = "divinganalytics${var.environment}acr"
+  # Note: ACR names must be globally unique. Using random suffix for uniqueness.
+  name                = "divinganalytics${var.environment}${random_string.acr_suffix[0].result}"
   resource_group_name = azurerm_resource_group.main[0].name
   location            = azurerm_resource_group.main[0].location
   sku                 = "Standard"

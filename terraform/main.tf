@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -31,9 +35,21 @@ variable "environment" {
 }
 
 variable "location" {
-  description = "Cloud region/location"
+  description = "Cloud region/location (e.g., eastus for Azure, us-east-1 for AWS, us-central1 for GCP)"
   type        = string
   default     = "eastus"
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "gcp_region" {
+  description = "GCP region"
+  type        = string
+  default     = "us-central1"
 }
 
 # Azure Provider Configuration
@@ -44,12 +60,12 @@ provider "azurerm" {
 
 # AWS Provider Configuration
 provider "aws" {
-  region = var.location
+  region = var.aws_region
 }
 
 # GCP Provider Configuration
 provider "google" {
-  region = var.location
+  region = var.gcp_region
 }
 
 # Output the deployment information

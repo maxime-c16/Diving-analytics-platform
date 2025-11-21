@@ -35,7 +35,7 @@ resource aks 'Microsoft.ContainerService/managedClusters@2023-05-01' = {
   }
 }
 
-resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' = {
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
   location: location
   sku: {
