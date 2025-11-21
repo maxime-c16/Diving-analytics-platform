@@ -2,19 +2,22 @@ steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/diving-analytics:$COMMIT_SHA', '.']
-  
+
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/diving-analytics:$COMMIT_SHA']
-  
+
   # Tag as latest
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['tag', 'gcr.io/$PROJECT_ID/diving-analytics:$COMMIT_SHA', 'gcr.io/$PROJECT_ID/diving-analytics:latest']
-  
+    args:
+      - 'tag'
+      - 'gcr.io/$PROJECT_ID/diving-analytics:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/diving-analytics:latest'
+
   # Push latest tag
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/diving-analytics:latest']
-  
+
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
