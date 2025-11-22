@@ -4,8 +4,14 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy application files
-COPY package.json index.js ./
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies if package-lock.json exists, otherwise skip
+RUN if [ -f package-lock.json ]; then npm ci --only=production; else echo "No dependencies to install"; fi
+
+# Copy application source
+COPY index.js ./
 
 # Expose port
 EXPOSE 3000
