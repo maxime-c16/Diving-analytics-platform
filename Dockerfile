@@ -1,0 +1,24 @@
+# Production image for Diving Analytics Platform
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies if package-lock.json exists, otherwise skip
+RUN if [ -f package-lock.json ]; then npm ci --only=production; else echo "No dependencies to install"; fi
+
+# Copy application source
+COPY index.js ./
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))" || exit 1
+
+# Run the application
+CMD ["node", "index.js"]

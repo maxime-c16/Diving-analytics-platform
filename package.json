@@ -1,0 +1,20 @@
+{
+  "name": "diving-analytics-platform",
+  "version": "1.0.0",
+  "description": "A Data Analysis & Performance Tracking Platform for Competitive Diving",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "diving",
+    "analytics",
+    "sports"
+  ],
+  "author": "Diving Software Inc.",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
