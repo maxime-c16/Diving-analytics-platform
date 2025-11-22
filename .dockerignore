@@ -2,7 +2,6 @@ node_modules
 npm-debug.log
 .git
 .gitignore
-README.md
 .env
 .env.local
 .env.*.local
@@ -11,3 +10,10 @@ coverage
 .idea
 *.log
 .DS_Store
+# Exclude deployment configs from image
+cloud/
+k8s/
+terraform/
+docker-compose.yml
+DEPLOYMENT.md
+readme.md

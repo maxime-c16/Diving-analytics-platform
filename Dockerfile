@@ -1,25 +1,11 @@
-# Multi-stage build for Diving Analytics Platform
-FROM node:18-alpine AS builder
+# Production image for Diving Analytics Platform
+FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy application source
-COPY . .
-
-# Production image
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Copy from builder
-COPY --from=builder /app ./
+# Copy application files
+COPY package.json index.js ./
 
 # Expose port
 EXPOSE 3000
