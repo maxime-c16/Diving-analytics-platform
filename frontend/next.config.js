@@ -1,0 +1,33 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Enable standalone output for optimal Docker deployment
+  // This creates a minimal production server with only necessary files
+  output: 'standalone',
+  
+  // Disable telemetry in production
+  telemetry: {
+    disabled: true,
+  },
+  
+  // Optimize images
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
+  },
+  
+  // Production optimizations
+  swcMinify: true,
+  reactStrictMode: true,
+  
+  // Reduce build output
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  
+  // Environment variables available to the client
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost/api',
+  },
+}
+
+module.exports = nextConfig
