@@ -57,7 +57,9 @@ export class ScoresController {
   @ApiOperation({
     summary: "Calculate score for a single dive",
     description:
-      "Calculates the final score for a dive using FINA scoring rules. Supports 5-judge (drop 1 high, 1 low) and 7-judge (drop 2 high, 2 low) panels.",
+      "Calculates the final score for a dive using FINA scoring rules. " +
+      "The Degree of Difficulty (DD) is looked up based on the dive code AND height. " +
+      "Supports 5-judge (drop 1 high, 1 low) and 7-judge (drop 2 high, 2 low) panels.",
   })
   @ApiBody({ type: CalculateScoreDto })
   @ApiResponse({
@@ -67,21 +69,21 @@ export class ScoresController {
   })
   @ApiResponse({
     status: 400,
-    description: "Invalid input (bad dive code or judge count)",
+    description: "Invalid input (bad dive code, height, or judge count)",
     schema: {
       type: "object",
       properties: {
         statusCode: { type: "number", example: 400 },
         message: {
           type: "string",
-          example: "Invalid dive code or must have exactly 5 or 7 judges",
+          example: "Invalid dive code, dive not available at this height, or must have exactly 5 or 7 judges",
         },
         error: { type: "string", example: "Bad Request" },
       },
     },
   })
   calculate(@Body() dto: CalculateScoreDto): ScoreResultDto {
-    return this.scoresService.calculateScore(dto.diveCode, dto.judgeScores);
+    return this.scoresService.calculateScore(dto.diveCode, dto.height, dto.judgeScores);
   }
 
   @Post("calculate-total")
@@ -118,7 +120,7 @@ export class ScoresController {
   @ApiResponse({ status: 400, description: "Invalid input" })
   batch(@Body() batchDto: BatchScoreDto): BatchScoreResultDto {
     const results = batchDto.dives.map((dive) =>
-      this.scoresService.calculateScore(dive.diveCode, dive.judgeScores)
+      this.scoresService.calculateScore(dive.diveCode, dive.height, dive.judgeScores)
     );
 
     return {

@@ -3,14 +3,19 @@ import {
   IsNotEmpty,
   IsNumber,
   IsString,
+  IsIn,
+  IsOptional,
   Max,
   Min,
   ArrayMinSize,
   ArrayMaxSize,
   Validate,
 } from "class-validator";
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsDiveCode } from "../../../common/validators/dive-code.validator";
+import { DivingHeight } from "../../../common/constants/fina-dive-table";
+
+export const VALID_HEIGHTS: DivingHeight[] = ['1m', '3m', '5m', '7.5m', '10m'];
 
 export class CalculateScoreDto {
   @ApiProperty({
@@ -25,6 +30,17 @@ export class CalculateScoreDto {
   @IsNotEmpty()
   @Validate(IsDiveCode)
   diveCode: string;
+
+  @ApiProperty({
+    description: "Diving height/apparatus. 1m and 3m are springboard, 5m/7.5m/10m are platform. " +
+      "The Degree of Difficulty (DD) varies by height according to FINA rules.",
+    example: "3m",
+    enum: VALID_HEIGHTS,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsIn(VALID_HEIGHTS, { message: 'height must be one of: 1m, 3m, 5m, 7.5m, 10m' })
+  height: DivingHeight;
 
   @ApiProperty({
     description: "Array of judge scores (5 or 7 judges)",
@@ -48,7 +64,10 @@ export class ScoreResultDto {
   @ApiProperty({ description: "FINA dive code", example: "103B" })
   diveCode: string;
 
-  @ApiProperty({ description: "Degree of difficulty", example: 1.7 })
+  @ApiProperty({ description: "Diving height/apparatus", example: "3m", enum: VALID_HEIGHTS })
+  height: DivingHeight;
+
+  @ApiProperty({ description: "Degree of difficulty (DD) for this dive at this height", example: 1.7 })
   difficulty: number;
 
   @ApiProperty({

@@ -1,13 +1,21 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost/api/v1';
-const COMPUTE_API = process.env.NEXT_PUBLIC_COMPUTE_URL || 'http://localhost:5000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost/api';
+const COMPUTE_API = process.env.NEXT_PUBLIC_COMPUTE_URL || 'http://localhost:5001';
+
+export type DivingHeight = '1m' | '3m' | '5m' | '7.5m' | '10m';
+
+export const DIVING_HEIGHTS: DivingHeight[] = ['1m', '3m', '5m', '7.5m', '10m'];
+export const SPRINGBOARD_HEIGHTS: DivingHeight[] = ['1m', '3m'];
+export const PLATFORM_HEIGHTS: DivingHeight[] = ['5m', '7.5m', '10m'];
 
 export interface CalculateScoreRequest {
   diveCode: string;
+  height: DivingHeight;
   judgeScores: number[];
 }
 
 export interface ScoreResult {
   diveCode: string;
+  height: DivingHeight;
   difficulty: number;
   judgeScores: number[];
   droppedScores: number[];
@@ -121,14 +129,14 @@ class ApiClient {
 
   // Analytics (compute engine)
   async getStatistics(request: StatisticsRequest): Promise<StatisticsResult> {
-    return this.fetch<StatisticsResult>(`${COMPUTE_API}/api/analytics/statistics`, {
+    return this.fetch<StatisticsResult>(`${COMPUTE_API}/analytics/statistics`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
   }
 
   async getJudgeConsistency(request: JudgeConsistencyRequest): Promise<JudgeConsistencyResult> {
-    return this.fetch<JudgeConsistencyResult>(`${COMPUTE_API}/api/analytics/judge-consistency`, {
+    return this.fetch<JudgeConsistencyResult>(`${COMPUTE_API}/analytics/judge-consistency`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -141,7 +149,7 @@ class ApiClient {
       lowerBound: number;
       upperBound: number;
       trend: string;
-    }>(`${COMPUTE_API}/api/analytics/predict-score`, {
+    }>(`${COMPUTE_API}/analytics/predict-score`, {
       method: 'POST',
       body: JSON.stringify({ historicalScores, difficulty }),
     });

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button, Input, Label, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui"
 import { BentoGrid, BentoGridItem, GradientText, FloatingCard, ShimmerButton } from "@/components/aceternity"
 import { SpotlightCard } from "@/components/aceternity/spotlight"
-import { api, type ScoreResult, type StatisticsResult } from "@/lib/api"
+import { api, type ScoreResult, type StatisticsResult, type DivingHeight, DIVING_HEIGHTS, SPRINGBOARD_HEIGHTS, PLATFORM_HEIGHTS } from "@/lib/api"
 import { cn, formatScore, getScoreClass } from "@/lib/utils"
 
 export default function Home() {
@@ -17,6 +17,7 @@ export default function Home() {
   
   // Score Calculator State
   const [diveCode, setDiveCode] = useState("5253B")
+  const [diveHeight, setDiveHeight] = useState<DivingHeight>("3m")
   const [judgeScores, setJudgeScores] = useState<string[]>(["7.0", "7.5", "7.0", "7.5", "7.0"])
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null)
   const [isCalculating, setIsCalculating] = useState(false)
@@ -32,7 +33,7 @@ export default function Home() {
   const checkApiHealth = async () => {
     try {
       const health = await api.getHealth()
-      setIsApiHealthy(health.status === "ok")
+      setIsApiHealthy(health.status === "ok" || health.status === "healthy")
     } catch {
       setIsApiHealthy(false)
     }
@@ -44,6 +45,7 @@ export default function Home() {
       const scores = judgeScores.map(s => parseFloat(s)).filter(s => !isNaN(s))
       const result = await api.calculateScore({
         diveCode,
+        height: diveHeight,
         judgeScores: scores,
       })
       setScoreResult(result)
@@ -213,18 +215,44 @@ export default function Home() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="diveCode">Dive Code</Label>
-                      <Input
-                        id="diveCode"
-                        placeholder="e.g., 5253B"
-                        value={diveCode}
-                        onChange={(e) => setDiveCode(e.target.value.toUpperCase())}
-                        className="font-mono text-lg"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Format: number + letter (e.g., 107B, 5253B, 6243D)
-                      </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="diveCode">Dive Code</Label>
+                        <Input
+                          id="diveCode"
+                          placeholder="e.g., 5253B"
+                          value={diveCode}
+                          onChange={(e) => setDiveCode(e.target.value.toUpperCase())}
+                          className="font-mono text-lg"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Format: number + letter (e.g., 107B, 5253B, 6243D)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="height">Height / Apparatus</Label>
+                        <select
+                          id="height"
+                          value={diveHeight}
+                          onChange={(e) => setDiveHeight(e.target.value as DivingHeight)}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <optgroup label="Springboard">
+                            {SPRINGBOARD_HEIGHTS.map(h => (
+                              <option key={h} value={h}>{h}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Platform">
+                            {PLATFORM_HEIGHTS.map(h => (
+                              <option key={h} value={h}>{h}</option>
+                            ))}
+                          </optgroup>
+                        </select>
+                        <p className="text-xs text-muted-foreground">
+                          DD varies by height per FINA rules
+                        </p>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -286,12 +314,15 @@ export default function Home() {
                             {formatScore(scoreResult.finalScore)}
                           </motion.div>
                           <p className="text-muted-foreground mt-2">Total Score</p>
+                          <p className="text-sm font-mono text-muted-foreground">
+                            {scoreResult.diveCode} @ {scoreResult.height}
+                          </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div className="rounded-lg border p-4 text-center">
                             <div className="text-2xl font-semibold">{scoreResult.difficulty}</div>
-                            <div className="text-sm text-muted-foreground">Degree of Difficulty</div>
+                            <div className="text-sm text-muted-foreground">DD ({scoreResult.height})</div>
                           </div>
                           <div className="rounded-lg border p-4 text-center">
                             <div className="text-2xl font-semibold">
