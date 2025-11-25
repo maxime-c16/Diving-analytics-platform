@@ -5,6 +5,27 @@ import {
 } from "class-validator";
 
 /**
+ * Valid FINA position codes (FINA Rule 1.5.8)
+ * A = Straight, B = Pike, C = Tuck, D = Free
+ */
+const VALID_POSITIONS = ["A", "B", "C", "D"] as const;
+
+/**
+ * Extract and validate position letter from a dive code
+ * @param diveCode - The dive code string
+ * @returns The uppercase position letter or null if invalid
+ */
+function extractPosition(diveCode: string): string | null {
+  if (typeof diveCode !== "string" || diveCode.length < 1) {
+    return null;
+  }
+  const position = diveCode.slice(-1).toUpperCase();
+  return VALID_POSITIONS.includes(position as (typeof VALID_POSITIONS)[number])
+    ? position
+    : null;
+}
+
+/**
  * FINA Dive Code Validator
  *
  * FINA Rules for Dive Code Designations:
@@ -38,9 +59,9 @@ export class IsDiveCode implements ValidatorConstraintInterface {
       return false;
     }
 
-    // Extract position letter (last character)
-    const position = value.slice(-1).toUpperCase();
-    if (!["A", "B", "C", "D"].includes(position)) {
+    // Extract and validate position letter (last character)
+    const position = extractPosition(value);
+    if (!position) {
       return false;
     }
 
@@ -138,8 +159,10 @@ export class IsDiveCode implements ValidatorConstraintInterface {
         return false;
       }
     } else {
-      // 5-digit twisting dive
-      // Could be extended somersaults (e.g., 51112) or extended twists
+      // 5-digit twisting dive - extended somersaults with single-digit twists
+      // FINA rules: Extended somersaults (10+) use two digits, twists use single digit
+      // Example: 51112D = Twisting (5), Forward (1), 5.5 somersaults (11), 1 twist (2)
+      // Note: No FINA dive has more than 9 half-twists (4.5 twists), so this interpretation is standard
       const halfSomersaults = parseInt(numericPart.slice(2, 4), 10);
       const halfTwists = parseInt(numericPart[4], 10);
 
@@ -241,7 +264,9 @@ export interface ParsedDiveCode {
  * @returns ParsedDiveCode object with all components
  */
 export function parseDiveCode(diveCode: string): ParsedDiveCode {
-  const position = diveCode.slice(-1).toUpperCase();
+  // Use shared helper for position extraction (already validated)
+  const position =
+    extractPosition(diveCode) || diveCode.slice(-1).toUpperCase();
   const numericPart = diveCode.slice(0, -1);
   const group = parseInt(numericPart[0], 10);
   const secondDigit = parseInt(numericPart[1], 10);
@@ -284,6 +309,7 @@ export function parseDiveCode(diveCode: string): ParsedDiveCode {
       halfSomersaults = parseInt(numericPart[2], 10);
       halfTwists = parseInt(numericPart[3], 10);
     } else {
+      // 5-digit: extended somersaults (10+) with single-digit twists
       halfSomersaults = parseInt(numericPart.slice(2, 4), 10);
       halfTwists = parseInt(numericPart[4], 10);
     }
@@ -296,6 +322,7 @@ export function parseDiveCode(diveCode: string): ParsedDiveCode {
       halfSomersaults = parseInt(numericPart[2], 10);
       halfTwists = parseInt(numericPart[3], 10);
     } else {
+      // 5-digit: extended somersaults (10+) with single-digit twists
       halfSomersaults = parseInt(numericPart.slice(2, 4), 10);
       halfTwists = parseInt(numericPart[4], 10);
     }
