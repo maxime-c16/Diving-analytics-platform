@@ -6,12 +6,15 @@ FROM python:3.11-slim-bookworm AS builder
 # Set working directory
 WORKDIR /app
 
-# Install build dependencies for compiling Python packages
+# Install build dependencies for compiling Python packages (numpy, scipy)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
         g++ \
+        gfortran \
         libc-dev \
+        libopenblas-dev \
+        liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
@@ -27,6 +30,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # PRODUCTION STAGE - Minimal runtime image
 # ============================================
 FROM python:3.11-slim-bookworm AS production
+
+# Install runtime dependencies for numpy/scipy
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libopenblas0 \
+        libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN useradd -m -u 1001 flask && \
