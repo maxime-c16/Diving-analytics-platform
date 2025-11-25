@@ -1,12 +1,25 @@
-import { IsArray, IsNotEmpty, IsNumber, IsString, Max, Min, ArrayMinSize, ArrayMaxSize, Validate } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-import { IsDiveCode } from '../../common/validators/dive-code.validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  Max,
+  Min,
+  ArrayMinSize,
+  ArrayMaxSize,
+  Validate,
+} from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
+import { IsDiveCode } from "../../../common/validators/dive-code.validator";
 
 export class CalculateScoreDto {
   @ApiProperty({
-    description: 'FINA dive code (e.g., 103B, 5132D)',
-    example: '103B',
-    pattern: '^[1-6][0-9]{2,3}[ABCD]$',
+    description:
+      "FINA dive code. Groups 1-4: [Group][Flying][Half-Somersaults][Position]. " +
+      "Group 5: [5][Direction][Half-Somersaults][Half-Twists][Position]. " +
+      "Group 6: [6][Direction][Half-Somersaults][Half-Twists]?[Position].",
+    example: "103B",
+    examples: ["103B", "113C", "5132D", "612B", "6122B"],
   })
   @IsString()
   @IsNotEmpty()
@@ -14,7 +27,7 @@ export class CalculateScoreDto {
   diveCode: string;
 
   @ApiProperty({
-    description: 'Array of judge scores (5 or 7 judges)',
+    description: "Array of judge scores (5 or 7 judges)",
     example: [7.0, 7.5, 8.0, 7.5, 8.5],
     type: [Number],
     minItems: 5,
@@ -32,35 +45,50 @@ export class CalculateScoreDto {
 }
 
 export class ScoreResultDto {
-  @ApiProperty({ description: 'FINA dive code', example: '103B' })
+  @ApiProperty({ description: "FINA dive code", example: "103B" })
   diveCode: string;
 
-  @ApiProperty({ description: 'Degree of difficulty', example: 1.7 })
+  @ApiProperty({ description: "Degree of difficulty", example: 1.7 })
   difficulty: number;
 
-  @ApiProperty({ description: 'Original judge scores', example: [7.0, 7.5, 8.0, 7.5, 8.5] })
+  @ApiProperty({
+    description: "Original judge scores",
+    example: [7.0, 7.5, 8.0, 7.5, 8.5],
+  })
   judgeScores: number[];
 
-  @ApiProperty({ description: 'Scores dropped per FINA rules', example: [7.0, 8.5] })
+  @ApiProperty({
+    description: "Scores dropped per FINA rules",
+    example: [7.0, 8.5],
+  })
   droppedScores: number[];
 
-  @ApiProperty({ description: 'Scores used in calculation', example: [7.5, 8.0, 7.5] })
+  @ApiProperty({
+    description: "Scores used in calculation",
+    example: [7.5, 8.0, 7.5],
+  })
   effectiveScores: number[];
 
-  @ApiProperty({ description: 'Sum of effective scores', example: 23.0 })
+  @ApiProperty({ description: "Sum of effective scores", example: 23.0 })
   rawScore: number;
 
-  @ApiProperty({ description: 'Final score (rawScore × difficulty)', example: 39.1 })
+  @ApiProperty({
+    description: "Final score (rawScore × difficulty)",
+    example: 39.1,
+  })
   finalScore: number;
 }
 
 export class TotalScoreResultDto {
-  @ApiProperty({ description: 'Array of individual dive results', type: [ScoreResultDto] })
+  @ApiProperty({
+    description: "Array of individual dive results",
+    type: [ScoreResultDto],
+  })
   dives: ScoreResultDto[];
 
-  @ApiProperty({ description: 'Total competition score', example: 125.6 })
+  @ApiProperty({ description: "Total competition score", example: 125.6 })
   totalScore: number;
 
-  @ApiProperty({ description: 'Number of dives', example: 5 })
+  @ApiProperty({ description: "Number of dives", example: 5 })
   numDives: number;
 }
