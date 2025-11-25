@@ -361,30 +361,29 @@ curl -X POST http://localhost/api/v1/scores/batch \
 ## 📖 FINA Dive Codes Reference
 
 ### Dive Groups
-1. **Forward (1xxx)**: Diver faces forward, rotates forward
-2. **Back (2xxx)**: Diver faces backward, rotates backward
-3. **Reverse (3xxx)**: Diver faces forward, rotates backward
-4. **Inward (4xxx)**: Diver faces backward, rotates forward
+1. **Forward (1xx)**: Diver faces forward, rotates forward
+2. **Back (2xx)**: Diver faces backward, rotates backward
+3. **Reverse (3xx)**: Diver faces forward, rotates backward
+4. **Inward (4xx)**: Diver faces backward, rotates forward
 5. **Twisting (5xxx)**: Dive with twists
-6. **Armstand (6xxx)**: Handstand takeoff (platform only)
+6. **Armstand (6xx)**: Handstand takeoff (platform only)
 
 ### Position Codes
-- **0**: Pike
-- **1**: Free
-- **2**: Straight
-- **3**: Tuck
+- **A**: Straight
+- **B**: Pike
+- **C**: Tuck
+- **D**: Free
 
-### Platform Codes
-- **A**: 1m springboard
-- **B**: 3m springboard
-- **C**: 5m, 7.5m, or 10m platform
-- **D**: Platform (for twisting dives)
+### Platform Codes (Not included in the dive code)
+- **1M**: 1m springboard
+- **3M**: 3m springboard
+- **5M - 10M**: 5m, 7.5m, or 10m platform
 
 ### Examples
-- `103B`: Forward (1), Pike (0), 1.5 somersaults (3), 3m board (B)
-- `201A`: Back (2), Free (0), 0.5 somersault (1), 1m board (A)
-- `301B`: Reverse (3), Pike (0), 0.5 somersault (1), 3m board (B)
-- `5132D`: Twisting (5), Pike (1), 1.5 somersaults (3), 1 twist (2), Platform (D)
+- `103B`: Forward (1), (0), 1.5 somersaults (3), Pike (B)
+- `201A`: Back (2), (0), 0.5 somersault (1), Straight (A)
+- `301B`: Reverse (3), (0), 0.5 somersault (1), Pike (B)
+- `5132D`: Twisting (5), Forward (1), 1.5 somersaults (3), 1 twist (2), Free (D)
 
 ---
 
