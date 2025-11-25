@@ -76,10 +76,34 @@ Calculate score for a single dive using FINA rules
 - **5 judges**: Drop 1 highest, 1 lowest → sum 3 middle scores × difficulty
 - **7 judges**: Drop 2 highest, 2 lowest → sum 3 middle scores × difficulty
 
-**Dive Code Format:**
-- `[group][position][somersaults][twists]?[platform]`
-- Example: `103B` = Forward (1), Pike (0), 1.5 somersaults (3), Platform B
-- Example: `5132D` = Twisting (5), Pike (1), 1.5 somersaults (3), 1 twist (2), Platform D
+**Dive Code Format (FINA Rules):**
+
+Dive codes are designated by 3 or 4 numerals followed by a single letter indicating position.
+
+**Groups 1-4** (Front/Back/Reverse/Inward): `[Group][Flying][Half-Somersaults][Position]`
+- First digit: Group (1=Front, 2=Back, 3=Reverse, 4=Inward)
+- Second digit: Flying action (0=no flying, 1=flying)
+- Third digit(s): Number of half-somersaults (3=1.5 somersaults, 11=5.5 somersaults)
+- Letter: Position (A=Straight, B=Pike, C=Tuck, D=Free)
+- Example: `103B` = Forward (1), No flying (0), 1.5 somersaults (3), Pike (B)
+- Example: `113C` = Forward (1), Flying (1), 1.5 somersaults (3), Tuck (C)
+
+**Group 5** (Twisting): `[5][Direction][Half-Somersaults][Half-Twists][Position]`
+- First digit: 5 (Twisting group)
+- Second digit: Direction (1=Front, 2=Back, 3=Reverse, 4=Inward)
+- Third digit(s): Number of half-somersaults
+- Next digit(s): Number of half-twists
+- Letter: Position
+- Example: `5132D` = Twisting (5), Forward direction (1), 1.5 somersaults (3), 1 twist (2 half-twists), Free (D)
+
+**Group 6** (Armstand): `[6][Direction][Half-Somersaults][Half-Twists]?[Position]`
+- First digit: 6 (Armstand group)
+- Second digit: Direction (1=Front, 2=Back, 3=Reverse, 4=Inward)
+- Third digit(s): Number of half-somersaults
+- Optional digit(s): Number of half-twists (if any)
+- Letter: Position
+- Example: `612B` = Armstand (6), Front direction (1), 1 somersault (2), Pike (B)
+- Example: `6122B` = Armstand (6), Front direction (1), 1 somersault (2), 1 twist (2 half-twists), Pike (B)
 
 ---
 
@@ -360,19 +384,43 @@ curl -X POST http://localhost/api/v1/scores/batch \
 
 ## 📖 FINA Dive Codes Reference
 
-### Dive Groups
-1. **Forward (1xx)**: Diver faces forward, rotates forward
-2. **Back (2xx)**: Diver faces backward, rotates backward
-3. **Reverse (3xx)**: Diver faces forward, rotates backward
-4. **Inward (4xx)**: Diver faces backward, rotates forward
-5. **Twisting (5xxx)**: Dive with twists
-6. **Armstand (6xx)**: Handstand takeoff (platform only)
+### Diving Number Designations (FINA Rules 1.5.1 - 1.5.9)
 
-### Position Codes
+All dives shall be designated by a system of 3 or 4 numerals followed by a single letter.
+
+### Dive Groups (First Digit)
+1. **Forward (1)**: Diver faces forward, rotates forward
+2. **Back (2)**: Diver faces backward, rotates backward
+3. **Reverse (3)**: Diver faces forward, rotates backward
+4. **Inward (4)**: Diver faces backward, rotates forward
+5. **Twisting (5)**: Dive with twists (second digit indicates direction)
+6. **Armstand (6)**: Handstand takeoff, platform only (second digit indicates direction)
+
+### Second Digit Rules
+**Groups 1-4** (Front/Back/Reverse/Inward):
+- `0` = No flying action
+- `1` = Flying action during the dive
+
+**Groups 5-6** (Twisting/Armstand):
+- `1` = Front direction
+- `2` = Back direction
+- `3` = Reverse direction
+- `4` = Inward direction
+
+### Third Digit (Half-Somersaults)
+- Indicates the number of half-somersaults being performed
+- Examples: 1=½, 2=1, 3=1½, 4=2, 5=2½, 6=3, 7=3½, 8=4, 9=4½
+- For more than 4½ somersaults: use two digits (e.g., 10=5, 11=5½ as in 1011B)
+
+### Fourth Digit (Half-Twists) - Groups 5-6 Only
+- Indicates the number of half-twists being performed
+- Examples: 1=½ twist, 2=1 twist, 3=1½ twists, 4=2 twists
+
+### Position Codes (Letter)
 - **A**: Straight
 - **B**: Pike
 - **C**: Tuck
-- **D**: Free
+- **D**: Free (combination of other positions, restricted in some twisting dives)
 
 ### Platform Codes (Not included in the dive code)
 - **1M**: 1m springboard
@@ -380,10 +428,15 @@ curl -X POST http://localhost/api/v1/scores/batch \
 - **5M - 10M**: 5m, 7.5m, or 10m platform
 
 ### Examples
-- `103B`: Forward (1), (0), 1.5 somersaults (3), Pike (B)
-- `201A`: Back (2), (0), 0.5 somersault (1), Straight (A)
-- `301B`: Reverse (3), (0), 0.5 somersault (1), Pike (B)
-- `5132D`: Twisting (5), Forward (1), 1.5 somersaults (3), 1 twist (2), Free (D)
+- `103B`: Forward (1), No flying (0), 1½ somersaults (3), Pike (B)
+- `113C`: Forward (1), Flying (1), 1½ somersaults (3), Tuck (C)
+- `201A`: Back (2), No flying (0), ½ somersault (1), Straight (A)
+- `301B`: Reverse (3), No flying (0), ½ somersault (1), Pike (B)
+- `5132D`: Twisting (5), Forward direction (1), 1½ somersaults (3), 1 twist (2), Free (D)
+- `5134D`: Twisting (5), Forward direction (1), 1½ somersaults (3), 2 twists (4), Free (D)
+- `612B`: Armstand (6), Front direction (1), 1 somersault (2), Pike (B)
+- `6243D`: Armstand (6), Back direction (2), 2 somersaults (4), 1½ twists (3), Free (D)
+- `1011B`: Forward (1), No flying (0), 5½ somersaults (11), Pike (B)
 
 ---
 
