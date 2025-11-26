@@ -2,7 +2,7 @@
 
 **Project**: Diving Analytics MVP  
 **Branch**: 001-diving-analytics-mvp  
-**Last Updated**: 2025-11-23
+**Last Updated**: 2025-11-26
 
 ---
 
@@ -11,7 +11,7 @@
 - **Phase 1**: ✅ Complete (Docker setup)
 - **Phase 2**: ✅ Complete (Database & entities)
 - **Phase 3**: ✅ Complete (Score computation & analytics)
-- **Phase 4**: ⏳ Pending (Data ingestion)
+- **Phase 4**: ✅ Complete (Data ingestion)
 - **Phase 5**: 🔄 In Progress (Frontend dashboard)
 - **Phase 6**: ⏳ Pending (Auth & polish)
 
@@ -128,60 +128,120 @@ curl -X POST http://localhost:5000/api/analytics/competition-insights \
 ---
 
 #### Task 4: Implement Data Ingestion Module (Phase 4)
-**Status**: ⏳ Not Started  
+**Status**: ✅ Complete  
 **Priority**: High (MVP Critical)  
-**Description**: CSV/PDF upload endpoints with validation and async processing
+**Description**: CSV upload endpoints with validation and async processing
 
-**Subtasks**:
-- [ ] Create `IngestionModule` with controller and service
-- [ ] Add `multer` for file uploads
-- [ ] Implement CSV parser with validation
-- [ ] Setup Celery worker integration
-- [ ] Add ingestion status tracking
-- [ ] Create ingestion logs endpoint
+**Completed Subtasks**:
+- [x] Create `IngestionModule` with controller and service
+- [x] Add `multer` for file uploads
+- [x] Implement CSV parser with validation
+- [x] Add ingestion status tracking with UUID-based job IDs
+- [x] Create ingestion logs endpoint with pagination and filtering
+- [x] Auto-calculate DD and final scores using FINA DD table
+- [x] Create TypeORM entities (Athlete, Competition, Dive, IngestionLog)
+- [x] Database integration with MariaDB
 
-**Files to Create**:
+**Files Created**:
 - `backend/src/modules/ingestion/ingestion.module.ts`
 - `backend/src/modules/ingestion/ingestion.controller.ts`
 - `backend/src/modules/ingestion/ingestion.service.ts`
 - `backend/src/modules/ingestion/dto/upload-competition.dto.ts`
+- `backend/src/entities/athlete.entity.ts`
+- `backend/src/entities/competition.entity.ts`
+- `backend/src/entities/dive.entity.ts`
+- `backend/src/entities/ingestion-log.entity.ts`
+- `scripts/sample-competition.csv` (test data)
 
-**Dependencies**:
-```bash
-npm install multer @types/multer csv-parser
+**API Endpoints**:
+- `POST /api/ingestion/upload/csv` - Upload competition CSV
+- `GET /api/ingestion/status/:id` - Get ingestion job status
+- `GET /api/ingestion/status/:id/errors` - Get row-level error details
+- `GET /api/ingestion/logs` - List all ingestion jobs (paginated)
+- `GET /api/ingestion/health` - Health check
+
+**CSV Format Supported**:
+```csv
+athlete_name,country,dive_code,round,judge_scores,rank
+John Smith,USA,105B,1,"7.0,7.5,8.0,7.5,7.0",1
 ```
 
 ---
 
 #### Task 5: Add OCR for PDF Processing
-**Status**: ⏳ Not Started  
+**Status**: ✅ Complete  
 **Priority**: Medium  
-**Description**: Integrate Tesseract OCR in worker service
+**Description**: Integrate Tesseract OCR in worker service for PDF result extraction
 
-**Implementation**:
-1. Update `worker/requirements.txt`:
+**Completed Implementation**:
+
+1. **Worker Service (`worker/worker.py`)** - 618 lines of Python code:
+   - `DivingPDFParser` class: Pattern-based extraction for dive codes, athlete names, countries, scores
+   - `PDFOCRProcessor` class: PDF-to-image conversion with `pdf2image`, OCR with `pytesseract`
+   - Image preprocessing: Grayscale conversion, contrast enhancement, sharpening
+   - Celery task `process_pdf` for async processing with Redis job tracking
+   - HTTP API: `/health`, `POST /process`, `GET /job/{id}`
+   - Confidence scoring algorithm (0.0-1.0) based on extraction quality
+
+2. **Worker Dockerfile** - Multi-stage optimized build:
+   - Tesseract OCR with English language pack
+   - Poppler utilities for PDF rendering
+   - Non-root user for security
+   - Health check configured
+
+3. **Worker Dependencies** (`requirements.txt`):
    ```
    pytesseract>=0.3.10
    pdf2image>=1.16.0
-   pillow>=10.0.0
+   Pillow>=10.0.0
+   celery>=5.3.0
+   redis>=4.5.0
    ```
 
-2. Update `worker/Dockerfile`:
-   ```dockerfile
-   RUN apt-get update && apt-get install -y \
-       tesseract-ocr \
-       poppler-utils \
-       && rm -rf /var/lib/apt/lists/*
-   ```
+4. **Backend Integration**:
+   - `POST /api/ingestion/upload/pdf` - Upload PDF for OCR processing
+   - `GET /api/ingestion/pdf/status/:jobId` - Poll job status and results
+   - `POST /api/ingestion/pdf/import/:jobId` - Import extracted data to database
+   - Full Swagger/OpenAPI documentation for all endpoints
+   - DTOs: `PdfUploadDto`, `PdfJobStatusDto`
 
-3. Implement OCR logic in `worker/worker.py`
+5. **Test Script** (`scripts/test-pdf-ocr.sh`):
+   - Worker health check
+   - Test PDF generation
+   - Full upload → poll → import workflow test
+
+**Files Created/Modified**:
+```
+worker/
+├── worker.py          # Full OCR implementation (618 lines)
+├── requirements.txt   # Dependencies for OCR
+└── Dockerfile         # Multi-stage with tesseract
+
+backend/src/modules/ingestion/
+├── ingestion.controller.ts  # PDF endpoints
+├── ingestion.service.ts     # importPdfData() method
+└── dto/upload-competition.dto.ts  # PDF DTOs
+
+scripts/
+└── test-pdf-ocr.sh    # E2E test script
+```
+
+**To Run**:
+```bash
+# Build and start worker service
+docker compose build worker-service
+docker compose up -d worker-service redis
+
+# Test the OCR endpoints
+./scripts/test-pdf-ocr.sh
+```
 
 ---
 
 #### Task 6: Build Frontend Dashboard
 **Status**: ⏳ Not Started  
 **Priority**: Medium  
-**Description**: Next.js UI for competition results and analytics
+**Description**: Next.js UI for competition results and analytics of OCR upload
 
 **Components to Create**:
 - [ ] Competition list page

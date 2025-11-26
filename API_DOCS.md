@@ -198,6 +198,150 @@ Batch process multiple dive calculations
 
 ---
 
+### Data Ingestion & OCR
+
+This platform supports structured ingestion of competition results via CSV and automated extraction from PDF result sheets using OCR (Tesseract). CSV ingestion performs validation, score computation (if not provided), and persistence. PDF OCR flows through a worker service that converts pages to images, extracts text, parses dives, and exposes a polling interface.
+
+#### CSV Ingestion
+
+##### POST `/api/ingestion/upload/csv`
+Upload a competition results CSV.
+
+Required multipart form fields:
+- `file`: CSV file
+- `competitionName`: e.g. `World Diving Championships 2025`
+- `eventType`: one of `1m`,`3m`,`5m`,`7.5m`,`10m`
+
+Optional fields: `competitionDate`, `location`
+
+Supported CSV headers (case-insensitive, flexible):
+`athlete_name | athleteName | name`, `country`, `dive_code | diveCode | dive`, `round | round_number`, `judge_scores | judgeScores | judges_scores | scores`, `difficulty | dd`, `final_score | finalScore | score`, `rank`
+
+Example CSV:
+```csv
+athlete_name,country,dive_code,round,judge_scores,rank
+John Smith,USA,105B,1,"7.0,7.5,8.0,7.5,7.0",1
+Jane Doe,GBR,405C,1,"6.5,7.0,7.0,6.5,7.0",2
+```
+
+Sample request:
+```bash
+curl -X POST http://localhost/api/ingestion/upload/csv \
+  -F "file=@scripts/sample-competition.csv" \
+  -F "competitionName=Test Open 2025" \
+  -F "eventType=3m"
+```
+
+Response (201):
+```json
+{
+  "success": true,
+  "message": "File uploaded successfully. Processing started.",
+  "data": {
+    "id": "f9f2c5e0-...",
+    "fileName": "sample-competition.csv",
+    "fileType": "csv",
+    "status": "processing",
+    "totalRows": 10,
+    "processedRows": 0,
+    "failedRows": 0
+  }
+}
+```
+
+##### GET `/api/ingestion/status/:id`
+Returns current ingestion job status.
+
+##### GET `/api/ingestion/status/:id/errors`
+Returns up to 20 captured row-level errors.
+
+##### GET `/api/ingestion/logs?status=completed&limit=20&offset=0`
+Paginated list of ingestion jobs.
+
+##### GET `/api/ingestion/health`
+Health check for ingestion module.
+
+#### PDF OCR Workflow
+
+Three-step process: upload PDF → poll status → import extracted dives.
+
+##### POST `/api/ingestion/upload/pdf`
+Multipart form (field `file` plus optional overrides `competitionName`, `competitionDate`, `location`, `eventType`). Returns job ID.
+
+```bash
+curl -X POST http://localhost/api/ingestion/upload/pdf \
+  -F "file=@'20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf'" \
+  -F "eventType=3m"
+```
+
+Response (202):
+```json
+{
+  "success": true,
+  "message": "PDF uploaded. OCR processing started.",
+  "jobId": "pdf-a1b2c3d4-e5f6",
+  "statusUrl": "/api/ingestion/pdf/status/pdf-a1b2c3d4-e5f6"
+}
+```
+
+##### GET `/api/ingestion/pdf/status/:jobId`
+Polling endpoint; returns parsing progress, confidence score, and extracted metadata / dives when complete.
+
+Example response (completed):
+```json
+{
+  "jobId": "pdf-a1b2c3d4-e5f6-7890",
+  "status": "completed",
+  "confidence": 0.92,
+  "competitionName": "Championnats IDF Hiver",
+  "eventType": "3m",
+  "divesExtracted": 153,
+  "dives": [ { "athlete_name": "Camille Rouffiac", "dive_code": "5211A", ... } ]
+}
+```
+
+##### POST `/api/ingestion/pdf/import/:jobId`
+Imports the extracted dives into the database, creating the competition if necessary.
+
+```bash
+curl -X POST http://localhost/api/ingestion/pdf/import/pdf-a1b2c3d4-e5f6-7890 \
+  -H "Content-Type: application/json" \
+  -d '{"competitionName":"Championnats IDF Hiver 2025","eventType":"3m"}'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Imported 153 dives from PDF extraction.",
+  "data": { "status": "completed", "processedRows": 153, "failedRows": 0 }
+}
+```
+
+#### Worker Service (Internal / Debug)
+The OCR worker also exposes internal endpoints (normally accessed via service network):
+- `GET /health`
+- `POST /process` (queue OCR job; used by backend)
+- `GET /job/:id` (job status)
+- `POST /process-pdf` (direct synchronous OCR, returns full dive list – for debugging only)
+- `POST /debug-ocr` (raw OCR text preview, limited pages)
+
+Environment Variables:
+- `WORKER_URL` (backend) points to worker (`http://worker-service:8080` in docker-compose)
+- `API_BASE_URL` (worker) for reporting back if extended integration needed.
+
+OCR Implementation Notes:
+- PDF → images (Poppler `pdf2image`, DPI 300)
+- OCR with Tesseract languages `eng+fra`
+- Dive code correction for common A→4 OCR misreads (`52114` → `5211A`)
+- Preprocessing currently disabled (raw images yield higher fidelity for dive codes)
+- Confidence score factors: metadata presence, dive count, score/name completeness.
+
+Scoring During Import:
+- If difficulty absent in PDF extraction, recalculated from internal FINA table.
+- If final score absent but judge scores present (≥5), recomputed using the ScoresService.
+
+
 ## 🔬 Compute Engine Analytics (Python)
 
 The Python compute-engine service provides advanced analytics:
@@ -515,8 +659,8 @@ docker exec -it mariadb mysql -u root -prootpassword diving_analytics
 - [x] Score calculation API (5/7 judges)
 - [x] Swagger/OpenAPI documentation
 - [x] Analytics endpoints (statistics, predictions)
-- [ ] Data ingestion (CSV/PDF upload)
-- [ ] OCR for PDF processing
+- [x] Data ingestion (CSV/PDF upload)
+- [x] OCR for PDF processing
 - [ ] Frontend dashboard
 - [ ] Authentication & authorization
 - [ ] Performance optimization

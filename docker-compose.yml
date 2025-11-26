@@ -15,10 +15,12 @@ services:
       - DB_HOST=mariadb
       - REDIS_HOST=redis
       - COMPUTE_SERVICE_URL=http://compute-service:5000
+      - WORKER_URL=http://worker-service:8080
     depends_on:
       - mariadb
       - redis
       - compute-service
+      - worker-service
 
   compute-service:
     build: ./compute-engine
@@ -27,12 +29,14 @@ services:
 
   worker-service:
     build: ./worker
+    ports:
+      - "8080:8080"
     environment:
+      - REDIS_URL=redis://redis:6379/0
       - REDIS_HOST=redis
-      - DB_HOST=mariadb
+      - API_BASE_URL=http://api-service:3000
     depends_on:
       - redis
-      - mariadb
 
   frontend:
     build: ./frontend
