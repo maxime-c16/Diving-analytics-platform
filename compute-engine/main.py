@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import numpy as np
 from scipy import stats
+from dd_calculator import calculate_dd, parse_dive_code
 
 app = Flask(__name__)
 
@@ -194,6 +195,126 @@ def competition_insights():
         "rankings": results,
         "totalAthletes": len(results),
         "leader": results[0] if results else None
+    })
+
+
+# ============================================
+# DD CALCULATION ENDPOINT
+# ============================================
+
+@app.route('/dd/calculate', methods=['POST'])
+def calculate_degree_of_difficulty():
+    """
+    Calculate the Degree of Difficulty (DD) for a dive.
+    
+    FINA DD Formula: DD = A + B + C + D + E
+    - A = Somersaults component
+    - B = Flight Position component
+    - C = Twists component
+    - D = Approach component
+    - E = Unnatural Entry component
+    
+    Request payload:
+    {
+        "dive_code": "207B",  # Required: dive code with position
+        "height": "3m"       # Optional: "1m" or "3m" (default: "3m")
+    }
+    
+    Response:
+    {
+        "dd": 3.9,
+        "components": {"A": 2.8, "B": 0.3, "C": 0.0, "D": 0.4, "E": 0.4},
+        "dive": {
+            "code": "207B",
+            "direction": "back",
+            "half_somersaults": 3.5,
+            "half_twists": 0.0,
+            "position": "B",
+            "is_twisting_dive": false
+        },
+        "height": "3m"
+    }
+    """
+    data = request.json
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    dive_code = data.get('dive_code')
+    if not dive_code:
+        return jsonify({"error": "dive_code is required"}), 400
+    
+    height = data.get('height', '3m')
+    
+    result = calculate_dd(dive_code, height)
+    
+    if result.error:
+        return jsonify({
+            "error": result.error,
+            "dive_code": dive_code,
+            "height": height
+        }), 400
+    
+    response = {
+        "dd": result.dd,
+        "components": result.components,
+        "dive": {
+            "code": result.dive.code,
+            "direction": result.dive.direction,
+            "half_somersaults": result.dive.half_somersaults,
+            "half_twists": result.dive.half_twists,
+            "position": result.dive.position,
+            "is_twisting_dive": result.dive.is_twisting_dive
+        },
+        "height": result.height
+    }
+    
+    return jsonify(response)
+
+
+@app.route('/dd/parse', methods=['POST'])
+def parse_dive():
+    """
+    Parse a dive code into its components.
+    
+    Request payload:
+    {
+        "dive_code": "5253B"  # Required: dive code with position
+    }
+    
+    Response:
+    {
+        "code": "5253B",
+        "direction": "back",
+        "half_somersaults": 2.5,
+        "half_twists": 3.0,
+        "position": "B",
+        "is_twisting_dive": true
+    }
+    """
+    data = request.json
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    dive_code = data.get('dive_code')
+    if not dive_code:
+        return jsonify({"error": "dive_code is required"}), 400
+    
+    dive = parse_dive_code(dive_code)
+    
+    if not dive:
+        return jsonify({
+            "error": f"Invalid dive code: {dive_code}"
+        }), 400
+    
+    return jsonify({
+        "code": dive.code,
+        "direction": dive.direction,
+        "half_somersaults": dive.half_somersaults,
+        "half_twists": dive.half_twists,
+        "position": dive.position,
+        "is_twisting_dive": dive.is_twisting_dive
     })
 
 
