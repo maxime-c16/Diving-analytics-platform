@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react"
 import Head from "next/head"
 import { motion } from "framer-motion"
-import { Activity, Calculator, BarChart3, TrendingUp, Award, Users } from "lucide-react"
+import { Activity, Calculator, BarChart3, TrendingUp, Award, Users, Trophy } from "lucide-react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui"
 import { Button, Input, Label, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui"
 import { BentoGrid, BentoGridItem, GradientText, FloatingCard, ShimmerButton } from "@/components/aceternity"
@@ -185,7 +186,12 @@ export default function Home() {
               <ShimmerButton onClick={() => setActiveTab("calculator")}>
                 Try Score Calculator
               </ShimmerButton>
-              <Button variant="outline" size="lg" onClick={loadStatistics}>
+              <Link href="/competitions">
+                <Button variant="outline" size="lg">
+                  <Trophy className="h-4 w-4 mr-2" /> Competitions
+                </Button>
+              </Link>
+              <Button variant="ghost" size="lg" onClick={loadStatistics}>
                 View Sample Analytics
               </Button>
             </div>

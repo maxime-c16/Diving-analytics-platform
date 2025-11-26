@@ -3,7 +3,7 @@
 import React from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Activity, BarChart3, FileUp, Settings, Users } from "lucide-react"
+import { Activity, BarChart3, FileUp, Settings, Users, Trophy } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 
@@ -13,8 +13,7 @@ interface HeaderProps {
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
-  { name: "Score Calculator", href: "/calculator", icon: Activity },
-  { name: "Data Import", href: "/import", icon: FileUp },
+  { name: "Competitions", href: "/competitions", icon: Trophy },
   { name: "Athletes", href: "/athletes", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
 ]

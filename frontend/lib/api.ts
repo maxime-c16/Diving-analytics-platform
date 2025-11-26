@@ -154,6 +154,135 @@ class ApiClient {
       body: JSON.stringify({ historicalScores, difficulty }),
     });
   }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Ingestion API
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  async getIngestionLogs(params?: { status?: string; limit?: number; offset?: number }) {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return this.fetch<{ data: IngestionLog[]; total: number }>(
+      `${API_BASE}/ingestion/logs${qs ? `?${qs}` : ''}`
+    );
+  }
+
+  async getIngestionStatus(id: string) {
+    return this.fetch<IngestionLog>(`${API_BASE}/ingestion/status/${id}`);
+  }
+
+  async getIngestionErrors(id: string) {
+    return this.fetch<{ errors: RowError[] }>(`${API_BASE}/ingestion/status/${id}/errors`);
+  }
+
+  // PDF OCR endpoints
+  async uploadPdf(file: File, metadata?: { competitionName?: string; eventType?: DivingHeight }) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (metadata?.competitionName) formData.append('competitionName', metadata.competitionName);
+    if (metadata?.eventType) formData.append('eventType', metadata.eventType);
+
+    const response = await fetch(`${API_BASE}/ingestion/upload/pdf`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
+      throw new Error(err.message || `HTTP ${response.status}`);
+    }
+    return response.json() as Promise<{ success: boolean; jobId: string; statusUrl: string }>;
+  }
+
+  async getPdfJobStatus(jobId: string) {
+    return this.fetch<PdfJobStatus>(`${API_BASE}/ingestion/pdf/status/${jobId}`);
+  }
+
+  async importPdfJob(jobId: string, overrides?: { competitionName?: string; eventType?: string }) {
+    return this.fetch<{ success: boolean; message: string; data: IngestionLog }>(
+      `${API_BASE}/ingestion/pdf/import/${jobId}`,
+      {
+        method: 'POST',
+        body: JSON.stringify(overrides || {}),
+      }
+    );
+  }
+
+  // CSV upload
+  async uploadCsv(
+    file: File,
+    metadata: { competitionName: string; eventType: DivingHeight; competitionDate?: string; location?: string }
+  ) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('competitionName', metadata.competitionName);
+    formData.append('eventType', metadata.eventType);
+    if (metadata.competitionDate) formData.append('competitionDate', metadata.competitionDate);
+    if (metadata.location) formData.append('location', metadata.location);
+
+    const response = await fetch(`${API_BASE}/ingestion/upload/csv`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
+      throw new Error(err.message || `HTTP ${response.status}`);
+    }
+    return response.json() as Promise<{ success: boolean; message: string; data: IngestionLog }>;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ingestion Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type IngestionStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'partial';
+
+export interface IngestionLog {
+  id: string;
+  fileName: string;
+  fileType: 'csv' | 'pdf' | 'json';
+  status: IngestionStatus;
+  totalRows: number;
+  processedRows: number;
+  failedRows: number;
+  errorMessage?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  competitionId?: number;
+}
+
+export interface RowError {
+  row: number;
+  error: string;
+  data?: Record<string, unknown>;
+}
+
+export interface PdfJobStatus {
+  jobId: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  message?: string;
+  confidence?: number;
+  competitionName?: string;
+  eventType?: string;
+  divesExtracted?: number;
+  errors?: string[];
+  dives?: ExtractedDive[];
+}
+
+export interface ExtractedDive {
+  athlete_name: string;
+  dive_code: string;
+  round_number: number;
+  judge_scores?: number[];
+  difficulty?: number;
+  final_score?: number;
+  rank?: number;
+  country?: string;
+  event_name?: string;
 }
 
 export const api = new ApiClient();
