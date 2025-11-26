@@ -192,12 +192,12 @@ export class PdfUploadDto {
   location?: string;
 
   @ApiPropertyOptional({
-    description: 'Override event type/height (otherwise extracted from PDF)',
+    description: 'Override event type/height. Use "auto" to use per-dive heights detected from event names.',
     example: '3m',
-    enum: ['1m', '3m', '5m', '7.5m', '10m'],
+    enum: ['1m', '3m', '5m', '7.5m', '10m', 'auto'],
   })
   @IsOptional()
-  @IsIn(['1m', '3m', '5m', '7.5m', '10m'])
+  @IsIn(['1m', '3m', '5m', '7.5m', '10m', 'auto'])
   eventType?: string;
 }
 
@@ -266,8 +266,30 @@ export class PdfJobStatusDto {
         final_score: { type: 'number' },
         rank: { type: 'number' },
         country: { type: 'string' },
+        event_name: { type: 'string' },
+        height: { type: 'string' },
       },
     },
   })
   dives?: any[];
+
+  @ApiPropertyOptional({
+    description: 'List of heights detected in the PDF (e.g., ["1m", "3m", "10m"])',
+    type: [String],
+    example: ['1m', '3m'],
+  })
+  detectedHeights?: string[];
+
+  @ApiPropertyOptional({
+    description: 'List of event names detected in the PDF',
+    type: [String],
+    example: ['Elite - Dames - 3m', 'Jeunes - Garçons - 1m'],
+  })
+  eventsDetected?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Whether the PDF contains multiple event heights',
+    example: true,
+  })
+  hasMultipleHeights?: boolean;
 }

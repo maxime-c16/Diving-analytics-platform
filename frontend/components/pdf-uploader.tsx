@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   FileText,
   X,
+  Info,
 } from "lucide-react"
 import { Button, Input, Label } from "@/components/ui"
 import { api, type PdfJobStatus, type DivingHeight, DIVING_HEIGHTS } from "@/lib/api"
@@ -103,9 +104,14 @@ export function PdfUploader({ onComplete }: PdfUploaderProps) {
   const handleImport = async () => {
     if (!jobId) return
     try {
+      // Use detected heights if available, otherwise use manually selected height
+      const heightToUse = jobStatus?.hasMultipleHeights 
+        ? 'auto'  // Backend will use per-dive heights
+        : (jobStatus?.detectedHeights?.[0] || eventType)
+      
       await api.importPdfJob(jobId, {
         competitionName: competitionName || jobStatus?.competitionName,
-        eventType: eventType,
+        eventType: heightToUse as any,
       })
       onComplete?.()
       reset()
@@ -199,7 +205,10 @@ export function PdfUploader({ onComplete }: PdfUploaderProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="eventType">Event Type</Label>
+            <Label htmlFor="eventType">
+              Default Event Height
+              <span className="ml-1 text-xs text-muted-foreground">(auto-detected when possible)</span>
+            </Label>
             <select
               id="eventType"
               value={eventType}
@@ -212,6 +221,9 @@ export function PdfUploader({ onComplete }: PdfUploaderProps) {
                 </option>
               ))}
             </select>
+            <p className="text-xs text-muted-foreground">
+              Heights will be auto-detected from event names in the PDF if available.
+            </p>
           </div>
         </motion.div>
       )}
@@ -280,7 +292,41 @@ export function PdfUploader({ onComplete }: PdfUploaderProps) {
                   <span className="font-medium">{jobStatus.competitionName}</span>
                 </div>
               )}
+              {/* Show detected heights */}
+              {jobStatus.detectedHeights && jobStatus.detectedHeights.length > 0 && (
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Heights Detected:</span>{" "}
+                  <span className="font-medium">
+                    {jobStatus.detectedHeights.join(", ")}
+                    {jobStatus.hasMultipleHeights && (
+                      <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                        (multi-event)
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+              {/* Show detected events */}
+              {jobStatus.eventsDetected && jobStatus.eventsDetected.length > 0 && (
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Events:</span>{" "}
+                  <span className="font-medium text-xs">
+                    {jobStatus.eventsDetected.slice(0, 3).join(", ")}
+                    {jobStatus.eventsDetected.length > 3 && ` +${jobStatus.eventsDetected.length - 3} more`}
+                  </span>
+                </div>
+              )}
             </div>
+            {/* Info banner for multi-height PDFs */}
+            {jobStatus.hasMultipleHeights && (
+              <div className="flex items-start gap-2 text-xs text-blue-700 dark:text-blue-300 bg-blue-500/10 rounded p-2 mb-3">
+                <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>
+                  This PDF contains multiple events with different heights. 
+                  Heights will be automatically assigned based on detected event names.
+                </span>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button onClick={handleImport} className="flex-1">
                 Import to Database

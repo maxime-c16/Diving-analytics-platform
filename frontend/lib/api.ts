@@ -232,6 +232,11 @@ class ApiClient {
     }
     return response.json() as Promise<{ success: boolean; message: string; data: IngestionLog }>;
   }
+
+  // Get competition data with dives
+  async getCompetitionData(id: string) {
+    return this.fetch<CompetitionData>(`${API_BASE}/ingestion/competition/${id}`);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -271,6 +276,10 @@ export interface PdfJobStatus {
   divesExtracted?: number;
   errors?: string[];
   dives?: ExtractedDive[];
+  // Multi-height support
+  detectedHeights?: DivingHeight[];
+  eventsDetected?: string[];
+  hasMultipleHeights?: boolean;
 }
 
 export interface ExtractedDive {
@@ -283,6 +292,81 @@ export interface ExtractedDive {
   rank?: number;
   country?: string;
   event_name?: string;
+  height?: DivingHeight;  // Per-dive height detection
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Competition Data Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CompetitionData {
+  competition: {
+    id: number;
+    name: string;
+    date?: string;
+    location?: string;
+    eventType?: string;
+  };
+  eventNames: string[];  // List of distinct event names (e.g., "Elite - Dames - 3m")
+  hasMultipleEvents: boolean;  // True if competition has multiple events
+  statistics: {
+    totalDives: number;
+    totalAthletes: number;
+    averageScore: number;
+    highestScore: number;
+    lowestScore: number;
+    rounds: number;
+  };
+  athletes: AthleteResult[];
+  rounds: RoundData[];
+  // Per-event data (only present if hasMultipleEvents)
+  events?: Record<string, {
+    statistics: CompetitionData['statistics'];
+    athletes: AthleteResult[];
+    rounds: RoundData[];
+  }>;
+}
+
+export interface AthleteResult {
+  rank: number;
+  athlete: {
+    id: number;
+    name: string;
+    country?: string;
+  };
+  totalScore: number;
+  averageScore: number;
+  diveCount: number;
+  dives: DiveResult[];
+}
+
+export interface DiveResult {
+  id: number;
+  roundNumber: number;
+  diveCode: string;
+  difficulty: number;
+  judgeScores?: number[];
+  finalScore: number;
+  rank?: number;
+  eventName?: string;  // Event this dive belongs to
+}
+
+export interface RoundData {
+  roundNumber: number;
+  diveCount: number;
+  averageScore: number;
+  highestScore: number;
+  dives: {
+    id: number;
+    athleteName: string;
+    athleteCountry?: string;
+    diveCode: string;
+    difficulty: number;
+    judgeScores?: number[];
+    finalScore: number;
+    rank?: number;
+    eventName?: string;  // Event this dive belongs to
+  }[];
 }
 
 export const api = new ApiClient();

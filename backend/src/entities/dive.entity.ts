@@ -38,6 +38,9 @@ export class Dive {
   @Column({ name: 'round_number', type: 'int', default: 1 })
   roundNumber: number;
 
+  @Column({ name: 'event_name', length: 255, nullable: true })
+  eventName: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

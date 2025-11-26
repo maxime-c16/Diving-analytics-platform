@@ -59,6 +59,41 @@ class ExtractedDive:
 	rank: Optional[int] = None
 	country: Optional[str] = None
 	event_name: Optional[str] = None  # Event within competition (e.g., "Elite - Dames - 3m")
+	height: Optional[str] = None  # Detected height (1m, 3m, 5m, 7.5m, 10m)
+
+
+def extract_height_from_event(event_name: Optional[str]) -> Optional[str]:
+	"""Extract diving height from event name string.
+	
+	Examples:
+	- "Elite - Dames - 3m" -> "3m"
+	- "Jeunes - Garçons Minimes B - 1m" -> "1m"
+	- "Elite - Messieurs - HV" -> "10m" (Haut Vol = Platform)
+	- "10m Platform" -> "10m"
+	"""
+	if not event_name:
+		return None
+	
+	# Look for explicit height patterns
+	height_match = re.search(r'\b(1m|3m|5m|7\.5m|10m)\b', event_name, re.IGNORECASE)
+	if height_match:
+		return height_match.group(1).lower()
+	
+	# HV = Haut Vol = High platform (typically 10m)
+	if re.search(r'\bHV\b|\bhaut[\s-]*vol\b', event_name, re.IGNORECASE):
+		return '10m'
+	
+	# Platform generally means 10m
+	if re.search(r'\bplatform\b|\bplateforme\b', event_name, re.IGNORECASE):
+		return '10m'
+	
+	# Tremplin/Springboard - try to determine 1m or 3m from context
+	if re.search(r'\btremplin\b|\bspringboard\b', event_name, re.IGNORECASE):
+		if '1' in event_name:
+			return '1m'
+		return '3m'  # Default springboard to 3m
+	
+	return None
 
 
 @dataclass
@@ -607,34 +642,88 @@ class DivingPDFParser:
 		if not numbers:
 			return None
 		
-		# First number after dive code is usually DD (1.0-4.5)
+		# PDF format: Height Coef J1 J2 J3 J4 J5 J6 J7 Cumul Points Points [Pen]
+		# Example: 3 1,5 5,0 4,5 4,5 4,0 5,5 14,0 21,00 21,00
+		# Heights are: 1, 3, 5, 7.5, 10 (whole numbers or 7.5)
+		# DD (Coef) is: 1.0-4.5 range with 0.1 precision
+		
 		difficulty = None
 		judge_scores = []
 		final_score = None
+		parsed_height = None
 		
-		# Identify difficulty (typically first number, range 1.0-4.5)
+		def is_valid_judge_score(n: float) -> bool:
+			"""Judge scores must be 0-10 in 0.5 increments"""
+			if n < 0 or n > 10:
+				return False
+			# Check if it's a valid 0.5 increment (0, 0.5, 1, 1.5, ..., 10)
+			return (n * 2) == int(n * 2)
+		
+		def is_diving_height(n: float) -> bool:
+			"""Diving heights are 1, 3, 5, 7.5, or 10"""
+			return n in [1, 1.0, 3, 3.0, 5, 5.0, 7.5, 10, 10.0]
+		
+		def is_likely_difficulty(n: float) -> bool:
+			"""DD is typically 1.1-4.5 range with 0.1 precision (not whole numbers usually)"""
+			# DD values are rarely whole numbers - they're like 1.5, 1.6, 2.0, 2.1, etc.
+			# Most DDs have a decimal part
+			return 1.0 <= n <= 4.5
+		
+		def is_likely_final_score(n: float) -> bool:
+			"""Final scores are typically > 10 and < 200"""
+			return 10 < n < 200
+		
+		# Parse the number sequence:
+		# First number could be height (1, 3, 5, 7.5, 10) or DD
+		# If first number is a diving height, second number is DD
 		remaining_numbers = numbers.copy()
-		for i, n in enumerate(numbers):
-			if 1.0 <= n <= 4.5:
-				difficulty = n
-				remaining_numbers = numbers[i+1:]
-				break
 		
-		if not remaining_numbers:
-			remaining_numbers = numbers
+		if len(numbers) >= 2:
+			first_num = numbers[0]
+			second_num = numbers[1]
+			
+			# Check if first number is a diving height
+			if is_diving_height(first_num):
+				parsed_height = first_num
+				# Second number should be DD
+				if is_likely_difficulty(second_num):
+					difficulty = second_num
+					remaining_numbers = numbers[2:]
+				else:
+					remaining_numbers = numbers[1:]
+			elif is_likely_difficulty(first_num):
+				# First number is DD (no height column in this format)
+				difficulty = first_num
+				remaining_numbers = numbers[1:]
+		elif len(numbers) == 1:
+			# Single number - could be DD or final score
+			if is_likely_difficulty(numbers[0]):
+				difficulty = numbers[0]
+				remaining_numbers = []
+			elif is_likely_final_score(numbers[0]):
+				final_score = numbers[0]
+				remaining_numbers = []
 		
-		# Separate judge scores (0-10) from final score (>10)
+		# Separate judge scores (valid 0.5 increments) from final score (>10)
 		for n in remaining_numbers:
-			if 0 <= n <= 10:
+			if is_valid_judge_score(n):
 				judge_scores.append(n)
-			elif n > 10 and n < 200 and final_score is None:
+			elif is_likely_final_score(n) and final_score is None:
 				final_score = n
 		
 		# Need at least some scores
 		if not judge_scores and not final_score:
 			return None
 		
-		# Limit to max 7 judges
+		# Validate judge scores - must have exactly 5 or 7 judges (standard panel sizes)
+		# If we don't have a valid count, clear the scores and rely on final_score
+		if judge_scores:
+			if len(judge_scores) not in [5, 7]:
+				# Invalid judge count - likely OCR error, discard judge scores
+				logger.debug(f"Invalid judge count {len(judge_scores)} for dive {dive_code}, discarding scores")
+				judge_scores = []
+		
+		# Limit to max 7 judges (safety check)
 		if len(judge_scores) > 7:
 			judge_scores = judge_scores[:7]
 		
@@ -643,6 +732,9 @@ class DivingPDFParser:
 		# Use athlete_dive_count + 1 (first dive = dive 1, second = dive 2, etc.)
 		# Only use explicit round_number if it was explicitly detected from text (not default)
 		effective_round = athlete_dive_count + 1
+		
+		# Extract height from event name
+		detected_height = extract_height_from_event(current_event)
 		
 		return ExtractedDive(
 			athlete_name=current_athlete or "Unknown Athlete",
@@ -653,7 +745,8 @@ class DivingPDFParser:
 			final_score=final_score,
 			rank=current_rank,
 			country=current_club,
-			event_name=current_event
+			event_name=current_event,
+			height=detected_height
 		)
 	
 	def _extract_dives_standard(self, text: str) -> List[ExtractedDive]:
@@ -811,31 +904,59 @@ class DivingPDFParser:
 		
 		# Process numbers after dive code
 		post_dive = line[dive_match.end():]
-		post_numbers = re.findall(r'(\d+\.?\d*)', post_dive)
-		post_numbers = [float(n) for n in post_numbers if n]
+		post_numbers = re.findall(r'(\d+[\.,]?\d*)', post_dive)
+		post_numbers = [float(n.replace(',', '.')) for n in post_numbers if n]
 		
 		if post_numbers:
-			# Heuristics to identify scores vs difficulty vs final score
-			# Judge scores are typically 0-10 in 0.5 increments
-			potential_scores = [n for n in post_numbers if 0 <= n <= 10]
+			# PDF format: Height Coef J1 J2 J3 J4 J5 J6 J7 Cumul Points Points [Pen]
+			# Heights are: 1, 3, 5, 7.5, 10
+			# DD (Coef) is: 1.0-4.5 range
+			
+			def is_valid_judge_score(n: float) -> bool:
+				if n < 0 or n > 10:
+					return False
+				return (n * 2) == int(n * 2)
+			
+			def is_diving_height(n: float) -> bool:
+				return n in [1, 1.0, 3, 3.0, 5, 5.0, 7.5, 10, 10.0]
+			
+			def is_likely_difficulty(n: float) -> bool:
+				return 1.0 <= n <= 4.5
+			
+			# Check if first number is height, second is DD
+			remaining = post_numbers.copy()
+			if len(post_numbers) >= 2:
+				if is_diving_height(post_numbers[0]):
+					# First is height, skip it
+					if is_likely_difficulty(post_numbers[1]):
+						difficulty = post_numbers[1]
+						remaining = post_numbers[2:]
+					else:
+						remaining = post_numbers[1:]
+				elif is_likely_difficulty(post_numbers[0]):
+					difficulty = post_numbers[0]
+					remaining = post_numbers[1:]
+			
+			# Extract judge scores and final score from remaining
+			potential_scores = [n for n in remaining if is_valid_judge_score(n)]
 			
 			if len(potential_scores) >= 3:
-				# We have enough for judge scores
-				judge_scores = potential_scores[:7]  # Max 7 judges
-				remaining = [n for n in post_numbers if n not in judge_scores[:len(judge_scores)]]
-				
-				# Look for difficulty (typically 1.0-4.5 range)
+				judge_scores = potential_scores[:7]
+				# Look for final score in remaining numbers
 				for n in remaining:
-					if 1.0 <= n <= 4.5 and difficulty is None:
-						difficulty = n
-					elif n > 10 and n < 200 and final_score is None:
+					if n > 10 and n < 200 and final_score is None:
 						final_score = n
 			elif len(potential_scores) > 0:
-				# Fewer numbers - try different interpretation
-				# Last number might be total score
-				if post_numbers and post_numbers[-1] > 10:
-					final_score = post_numbers[-1]
-					judge_scores = [n for n in post_numbers[:-1] if 0 <= n <= 10]
+				# Fewer valid scores - last big number might be total
+				for n in remaining:
+					if n > 10 and n < 200:
+						final_score = n
+						break
+				judge_scores = potential_scores[:7]
+		
+		# Validate judge scores - must have exactly 5 or 7 judges (standard panel sizes)
+		if judge_scores and len(judge_scores) not in [5, 7]:
+			judge_scores = []  # Invalid count, discard
 		
 		# Need at least a dive code and some scores to be valid
 		if not judge_scores and not final_score:
@@ -1081,6 +1202,19 @@ def process_pdf_task(self, job_id: str, pdf_bytes_b64: str, metadata: dict):
 			'confidence': result.confidence,
 			'raw_text_length': len(result.raw_text) if result.raw_text else 0
 		}
+		
+		# Extract detected heights from dives
+		detected_heights = set()
+		events_detected = set()
+		for dive in (result.dives or []):
+			if dive.height:
+				detected_heights.add(dive.height)
+			if dive.event_name:
+				events_detected.add(dive.event_name)
+		
+		result_dict['detected_heights'] = sorted(list(detected_heights))
+		result_dict['events_detected'] = sorted(list(events_detected))
+		result_dict['has_multiple_heights'] = len(detected_heights) > 1
 		
 		# Update job status
 		if result.success:

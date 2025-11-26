@@ -58,6 +58,8 @@ interface ProcessedRow {
   difficulty: number;
   finalScore: number;
   rank?: number;
+  height?: string;  // Height for this specific dive (e.g., '3m', '10m')
+  eventName?: string;  // Event within competition (e.g., 'Elite - Dames - 3m')
 }
 
 export interface RowError {
@@ -354,18 +356,29 @@ export class IngestionService {
     // Get position from dive code
     const position = row.diveCode.slice(-1);
 
+    // Get height from the row (for multi-height imports) or from competition
+    let heightValue: number;
+    if (row.height) {
+      heightValue = parseFloat(row.height.replace('m', ''));
+    } else if (competition.eventType && competition.eventType !== 'mixed') {
+      heightValue = parseFloat(competition.eventType.replace('m', ''));
+    } else {
+      heightValue = 3; // Default to 3m if unknown
+    }
+
     // Create dive record
     const dive = this.diveRepository.create({
       athleteId: athlete.id,
       competitionId: competition.id,
       diveCode: row.diveCode,
       position,
-      height: parseFloat(competition.eventType.replace('m', '')),
+      height: heightValue,
       difficulty: row.difficulty,
       judgesScores: row.judgeScores,
       finalScore: row.finalScore,
       rank: row.rank,
       roundNumber: row.roundNumber,
+      eventName: row.eventName,
     });
 
     await this.diveRepository.save(dive);
@@ -436,7 +449,11 @@ export class IngestionService {
     sourceJobId: string;
   }): Promise<IngestionStatusDto> {
     const { competitionName, competitionDate, location, eventType, dives, sourceJobId } = params;
-    const height = eventType as DivingHeight;
+    
+    // Handle 'auto' mode - use per-dive heights, default to '3m' for competition record
+    const isAutoHeight = eventType === 'auto';
+    const defaultHeight = isAutoHeight ? '3m' : eventType;
+    const height = defaultHeight as DivingHeight;
 
     // Create ingestion log
     const ingestionLog = this.ingestionLogRepository.create({
@@ -449,22 +466,36 @@ export class IngestionService {
     });
     await this.ingestionLogRepository.save(ingestionLog);
 
+    // For 'auto' mode, use 'mixed' as event type to indicate multiple heights
+    const competitionEventType = isAutoHeight ? 'mixed' : eventType;
+
     // Create or find competition
     let competition = await this.competitionRepository.findOne({
       where: {
         name: competitionName,
-        eventType,
+        eventType: competitionEventType,
       },
     });
 
+    let isNewCompetition = false;
     if (!competition) {
       competition = this.competitionRepository.create({
         name: competitionName,
         date: competitionDate ? new Date(competitionDate) : null,
         location,
-        eventType,
+        eventType: competitionEventType,
       });
       await this.competitionRepository.save(competition);
+      isNewCompetition = true;
+    } else {
+      // If re-importing to existing competition, clear old dives first
+      const existingDiveCount = await this.diveRepository.count({
+        where: { competitionId: competition.id },
+      });
+      if (existingDiveCount > 0) {
+        this.logger.log(`Clearing ${existingDiveCount} existing dives for competition ${competition.id} before re-import`);
+        await this.diveRepository.delete({ competitionId: competition.id });
+      }
     }
 
     ingestionLog.competitionId = competition.id;
@@ -483,9 +514,17 @@ export class IngestionService {
         await this.insertRow(processedRow, competition);
         processedCount++;
       } catch (error) {
+        const errorMsg = error.message || String(error);
+        // Log first 3 errors for debugging
+        if (errors.length < 3) {
+          this.logger.error(`Dive ${i + 1} failed: ${errorMsg}`, {
+            dive: dives[i],
+            defaultHeight: height,
+          });
+        }
         errors.push({
           row: i + 1,
-          error: error.message,
+          error: errorMsg,
           data: dives[i],
         });
       }
@@ -515,12 +554,18 @@ export class IngestionService {
 
   /**
    * Process a dive extracted from PDF OCR
+   * Uses per-dive height if available, otherwise falls back to global height
    */
-  private processPdfDive(dive: any, height: DivingHeight, rowNum: number): ProcessedRow {
+  private processPdfDive(dive: any, defaultHeight: DivingHeight, rowNum: number): ProcessedRow {
     const athleteName = dive.athlete_name || dive.athleteName || 'Unknown';
     const diveCode = (dive.dive_code || dive.diveCode || '').toUpperCase().trim();
     const roundNumber = dive.round_number || dive.roundNumber || 1;
     const country = dive.country;
+    const eventName = dive.event_name || dive.eventName;
+
+    // Use per-dive height if available, otherwise use default
+    const diveHeight = dive.height || defaultHeight;
+    const height = diveHeight as DivingHeight;
 
     // Validate dive code
     if (!diveCode || diveCode.length < 3) {
@@ -576,6 +621,189 @@ export class IngestionService {
       difficulty: Number(difficulty),
       finalScore: Number(finalScore),
       rank: dive.rank ? Number(dive.rank) : undefined,
+      height: height,  // Include the height for this dive
+      eventName,  // Include the event name for this dive
+    };
+  }
+
+  /**
+   * Get competition data with all dives and athletes
+   */
+  async getCompetitionData(id: string) {
+    // Try to find by ingestion job ID first
+    const log = await this.ingestionLogRepository.findOne({ where: { id } });
+    
+    let competitionId: number;
+    if (log && log.competitionId) {
+      competitionId = log.competitionId;
+    } else if (!isNaN(Number(id))) {
+      competitionId = Number(id);
+    } else {
+      throw new NotFoundException(`Competition not found for ID: ${id}`);
+    }
+
+    // Get competition with dives and athletes
+    const competition = await this.competitionRepository.findOne({
+      where: { id: competitionId },
+    });
+
+    if (!competition) {
+      throw new NotFoundException(`Competition not found: ${competitionId}`);
+    }
+
+    // Get all dives for this competition with athletes
+    const dives = await this.diveRepository.find({
+      where: { competitionId },
+      relations: ['athlete'],
+      order: { roundNumber: 'ASC', rank: 'ASC' },
+    });
+
+    // Get list of unique events in this competition
+    const eventNames = [...new Set(dives.map(d => d.eventName).filter(Boolean))];
+    const hasMultipleEvents = eventNames.length > 1;
+
+    // Helper function to process dives for a specific subset
+    const processDives = (divesToProcess: typeof dives) => {
+      // Group dives by athlete for analysis
+      const athleteMap = new Map<number, {
+        athlete: { id: number; name: string; country?: string };
+        dives: typeof dives;
+        totalScore: number;
+        averageScore: number;
+      }>();
+
+      for (const dive of divesToProcess) {
+        if (!dive.athleteId) continue;
+        
+        if (!athleteMap.has(dive.athleteId)) {
+          athleteMap.set(dive.athleteId, {
+            athlete: {
+              id: dive.athleteId,
+              name: dive.athlete?.name || 'Unknown',
+              country: dive.athlete?.country,
+            },
+            dives: [],
+            totalScore: 0,
+            averageScore: 0,
+          });
+        }
+        
+        const athleteData = athleteMap.get(dive.athleteId)!;
+        athleteData.dives.push(dive);
+        athleteData.totalScore += Number(dive.finalScore) || 0;
+      }
+
+      // Calculate averages and create rankings
+      const athletes = Array.from(athleteMap.values()).map(a => ({
+        ...a,
+        averageScore: a.dives.length > 0 ? a.totalScore / a.dives.length : 0,
+        diveCount: a.dives.length,
+      }));
+
+      // Sort by total score descending
+      athletes.sort((a, b) => b.totalScore - a.totalScore);
+
+      // Add rankings
+      const rankedAthletes = athletes.map((a, index) => ({
+        ...a,
+        rank: index + 1,
+      }));
+
+      // Calculate statistics
+      const allScores = divesToProcess.map(d => Number(d.finalScore) || 0).filter(s => s > 0);
+      const statistics = {
+        totalDives: divesToProcess.length,
+        totalAthletes: athleteMap.size,
+        averageScore: allScores.length > 0 ? allScores.reduce((a, b) => a + b, 0) / allScores.length : 0,
+        highestScore: allScores.length > 0 ? Math.max(...allScores) : 0,
+        lowestScore: allScores.length > 0 ? Math.min(...allScores) : 0,
+        rounds: Math.max(...divesToProcess.map(d => d.roundNumber || 1), 0),
+      };
+
+      // Group dives by round for round-by-round analysis
+      const roundMap = new Map<number, typeof dives>();
+      for (const dive of divesToProcess) {
+        const round = dive.roundNumber || 1;
+        if (!roundMap.has(round)) {
+          roundMap.set(round, []);
+        }
+        roundMap.get(round)!.push(dive);
+      }
+
+      const rounds = Array.from(roundMap.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([roundNumber, roundDives]) => {
+          const scores = roundDives.map(d => Number(d.finalScore) || 0).filter(s => s > 0);
+          return {
+            roundNumber,
+            diveCount: roundDives.length,
+            averageScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+            highestScore: scores.length > 0 ? Math.max(...scores) : 0,
+            dives: roundDives.map(d => ({
+              id: d.id,
+              athleteName: d.athlete?.name || 'Unknown',
+              athleteCountry: d.athlete?.country,
+              diveCode: d.diveCode,
+              difficulty: Number(d.difficulty),
+              judgeScores: d.judgesScores,
+              finalScore: Number(d.finalScore),
+              rank: d.rank,
+              eventName: d.eventName,
+            })),
+          };
+        });
+
+      return {
+        statistics,
+        athletes: rankedAthletes.map(a => ({
+          rank: a.rank,
+          athlete: a.athlete,
+          totalScore: Math.round(a.totalScore * 100) / 100,
+          averageScore: Math.round(a.averageScore * 100) / 100,
+          diveCount: a.diveCount,
+          dives: a.dives.map(d => ({
+            id: d.id,
+            roundNumber: d.roundNumber,
+            diveCode: d.diveCode,
+            difficulty: Number(d.difficulty),
+            judgeScores: d.judgesScores,
+            finalScore: Number(d.finalScore),
+            rank: d.rank,
+            eventName: d.eventName,
+          })),
+        })),
+        rounds,
+      };
+    };
+
+    // Process all dives for overall competition view
+    const overallData = processDives(dives);
+
+    // Process each event separately if there are multiple events
+    const eventData: Record<string, ReturnType<typeof processDives>> = {};
+    if (hasMultipleEvents) {
+      for (const eventName of eventNames) {
+        const eventDives = dives.filter(d => d.eventName === eventName);
+        eventData[eventName] = processDives(eventDives);
+      }
+    }
+
+    return {
+      competition: {
+        id: competition.id,
+        name: competition.name,
+        date: competition.date,
+        location: competition.location,
+        eventType: competition.eventType,
+      },
+      eventNames,
+      hasMultipleEvents,
+      // Overall combined data
+      statistics: overallData.statistics,
+      athletes: overallData.athletes,
+      rounds: overallData.rounds,
+      // Per-event data (only populated if multiple events)
+      events: hasMultipleEvents ? eventData : undefined,
     };
   }
 

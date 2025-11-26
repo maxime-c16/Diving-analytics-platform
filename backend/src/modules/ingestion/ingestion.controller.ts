@@ -455,6 +455,10 @@ The worker service will:
         divesExtracted: data.data?.dives?.length || 0,
         errors: data.data?.errors,
         dives: data.data?.dives,
+        // Multi-height support
+        detectedHeights: data.data?.detected_heights,
+        eventsDetected: data.data?.events_detected,
+        hasMultipleHeights: data.data?.has_multiple_heights || false,
       };
       
     } catch (error) {
@@ -553,6 +557,28 @@ The worker service will:
       message: `Imported ${result.processedRows} dives from PDF extraction.`,
       data: result,
     };
+  }
+
+  @Get('competition/:id')
+  @ApiOperation({
+    summary: 'Get competition data with dives',
+    description: 'Get full competition data including all dives and athlete information.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Competition ID (numeric) or Ingestion Job UUID',
+    example: '1',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Competition data with dives',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Competition not found',
+  })
+  async getCompetitionData(@Param('id') id: string) {
+    return this.ingestionService.getCompetitionData(id);
   }
 
   @Get('health')
