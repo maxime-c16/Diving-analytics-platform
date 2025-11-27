@@ -258,6 +258,7 @@ export interface IngestionLog {
   startedAt?: string;
   completedAt?: string;
   competitionId?: number;
+  confidence?: number;  // OCR extraction confidence score (0.0 - 1.0)
 }
 
 export interface RowError {

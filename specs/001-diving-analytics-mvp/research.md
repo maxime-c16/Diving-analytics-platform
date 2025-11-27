@@ -373,6 +373,76 @@ high_conf_text = [
 
 ---
 
+## R6: OCR Known Limitations and Workarounds
+
+### Fundamental Limitations
+
+| Limitation | Impact | Workaround |
+|------------|--------|------------|
+| **Scanned PDF Quality** | Low resolution scans (<150 DPI) produce garbled text | Request 300+ DPI scans; provide manual entry fallback |
+| **Multi-column Detection** | Tesseract may merge columns incorrectly | Use PSM 6 (single block); manual column detection in parser |
+| **Handwritten Text** | Not supported by current OCR | Require typed/digital PDFs |
+| **Complex Layouts** | Headers/footers may merge with data | Filter by regex patterns; skip non-data rows |
+| **Non-Latin Scripts** | Limited language support | Currently supports French+English only |
+
+### Character-Level Errors
+
+| Character | Common Misreads | Correction Strategy |
+|-----------|-----------------|---------------------|
+| A | 4, @, ^ | Context: if last char of 4-digit code → A |
+| B | 8, 6 | Context: dive position letter → B |
+| C | (, G | Less common; no auto-correction |
+| D | 0, O | Context: dive position letter → D |
+| 0 | O, o | Context: numeric field → 0 |
+| 1 | l, I, \| | Context: numeric field → 1 |
+| comma | period, semicolon | French decimal: replace , with . |
+
+### Layout-Specific Issues
+
+#### DiveRecorder PDFs
+- **Round headers** may be confused with "Plongeon N" (Dive N)
+- **Solution**: Explicit pattern match for "Tour X" or "Round X" with X ≤ 10
+
+#### FFN Federation PDFs
+- **Name format**: LASTNAME Firstname (vs DiveRecorder: Firstname LASTNAME)
+- **Solution**: Multiple regex patterns tried in sequence
+
+#### Merged Cell Values
+- Judge scores may merge: "6.57.0" instead of "6.5 7.0"
+- **Solution**: Split on 0.5 boundaries when score > 10
+
+### Performance Characteristics
+
+| Metric | Typical Value | Notes |
+|--------|---------------|-------|
+| PDF→Image conversion | 2-5s per page | Scales linearly with page count |
+| OCR per page | 1-3s | Depends on text density |
+| Text parsing | <0.5s | Fast regex matching |
+| Total for 10-page PDF | 30-50s | Async processing recommended |
+
+### Accuracy by Data Type
+
+Based on ground truth testing:
+
+| Field | Expected Accuracy | Confidence Level |
+|-------|-------------------|------------------|
+| Dive codes | ≥98% after correction | High |
+| Judge scores | ≥95% | Medium-High |
+| Difficulty | ≥98% (from code lookup) | High |
+| Final scores | ≥95% | Medium-High |
+| Athlete names | ≥90% | Medium (accent issues) |
+| Round numbers | ≥95% | Medium-High |
+
+### When to Recommend Manual Entry
+
+Trigger manual entry when:
+1. Confidence score < 0.7
+2. More than 20% of dives fail validation
+3. PDF contains scanned handwritten annotations
+4. Multi-column layout detected with column confusion
+
+---
+
 ## Decisions Summary
 
 | Decision | Rationale | Alternatives Rejected |
@@ -388,8 +458,9 @@ high_conf_text = [
 ## Next Steps
 
 1. ✅ Complete research.md
-2. Create `data-model.md` documenting data structures
-3. Create `contracts/` with API schemas
-4. Create `quickstart.md` for test setup
-5. Extract ground truth data from PDF
-6. Implement fixes with TDD approach
+2. ✅ Create `data-model.md` documenting data structures
+3. ✅ Create `contracts/` with API schemas
+4. ✅ Create `quickstart.md` for test setup
+5. ✅ Extract ground truth data from PDF
+6. ✅ Implement fixes with TDD approach
+7. ✅ Document OCR limitations and workarounds

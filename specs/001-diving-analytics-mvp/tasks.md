@@ -118,20 +118,20 @@
 
 ### Implementation for User Story 4
 
-- [ ] T035 [P] [US4] Create OCR extraction test file at `tests/worker/test_ocr_extraction.py` with fixture loading
-- [ ] T036 [P] [US4] Add test case `test_dive_code_extraction()` in `tests/worker/test_ocr_extraction.py`
-- [ ] T037 [P] [US4] Add test case `test_judge_score_extraction()` in `tests/worker/test_ocr_extraction.py`
-- [ ] T038 [P] [US4] Add test case `test_athlete_association()` in `tests/worker/test_ocr_extraction.py`
-- [ ] T039 [P] [US4] Add test case `test_ocr_error_correction()` in `tests/worker/test_ocr_extraction.py`
-- [ ] T040 [US4] Create backend integration test at `tests/backend/test_ingestion_e2e.ts`
-- [ ] T041 [US4] Add test case for CSV import validation in `tests/backend/test_ingestion_e2e.ts`
-- [ ] T042 [US4] Add test case for competition data API response in `tests/backend/test_ingestion_e2e.ts`
-- [ ] T043 [P] [US4] Create frontend component test at `tests/frontend/test_analysis_panel.spec.ts`
-- [ ] T044 [US4] Add Playwright E2E test for full pipeline in `tests/frontend/test_pipeline_e2e.spec.ts`
-- [ ] T045 [US4] Create CI workflow at `.github/workflows/pipeline-tests.yml` to run full test suite
-- [ ] T046 [US4] Add test coverage reporting configuration for worker, backend, and frontend
-- [ ] T046a [US4] Create accuracy measurement script at `tests/utils/accuracy.py` to calculate NFR-002 compliance (% dives with all fields matching within tolerance)
-- [ ] T046b [US4] Add partial OCR failure handling test case in `tests/worker/test_ocr_extraction.py` - verify graceful degradation when some pages fail
+- [X] T035 [P] [US4] Create OCR extraction test file at `tests/worker/test_ocr_extraction.py` with fixture loading
+- [X] T036 [P] [US4] Add test case `test_dive_code_extraction()` in `tests/worker/test_ocr_extraction.py`
+- [X] T037 [P] [US4] Add test case `test_judge_score_extraction()` in `tests/worker/test_ocr_extraction.py`
+- [X] T038 [P] [US4] Add test case `test_athlete_association()` in `tests/worker/test_ocr_extraction.py`
+- [X] T039 [P] [US4] Add test case `test_ocr_error_correction()` in `tests/worker/test_ocr_extraction.py`
+- [X] T040 [US4] Create backend integration test at `tests/backend/test_ingestion_e2e.e2e-spec.ts`
+- [X] T041 [US4] Add test case for CSV import validation in `tests/backend/test_ingestion_e2e.e2e-spec.ts`
+- [X] T042 [US4] Add test case for competition data API response in `tests/backend/test_ingestion_e2e.e2e-spec.ts`
+- [X] T043 [P] [US4] Create frontend component test at `tests/frontend/test_analysis_panel.spec.ts`
+- [X] T044 [US4] Add Playwright E2E test for full pipeline in `tests/frontend/test_pipeline_e2e.spec.ts`
+- [X] T045 [US4] Create CI workflow at `.github/workflows/pipeline-tests.yml` to run full test suite
+- [X] T046 [US4] Add test coverage reporting configuration for worker, backend, and frontend
+- [X] T046a [US4] Create accuracy measurement script at `tests/utils/accuracy.py` to calculate NFR-002 compliance (% dives with all fields matching within tolerance)
+- [X] T046b [US4] Add partial OCR failure handling test case in `tests/worker/test_ocr_extraction.py` - verify graceful degradation when some pages fail
 
 **Checkpoint**: User Story 4 complete - automated tests should validate full pipeline
 
@@ -141,11 +141,11 @@
 
 **Purpose**: Propagate confidence scores and event grouping through full stack
 
-- [ ] T047a [P] Add `confidence` field to backend `IngestionLog` entity in `backend/src/entities/ingestion-log.entity.ts`
-- [ ] T047b [P] Update ingestion service in `backend/src/modules/ingestion/ingestion.service.ts` to store confidence score from worker
-- [ ] T047c [P] Add confidence display to `frontend/pages/competitions/[id].tsx` in the Details tab
-- [ ] T047d [P] Add event filtering dropdown to `frontend/pages/competitions/[id].tsx` for multi-event PDFs (FR-008 frontend support)
-- [ ] T047e Add backend endpoint to list events within a competition in `backend/src/modules/ingestion/ingestion.controller.ts`
+- [X] T047a [P] Add `confidence` field to backend `IngestionLog` entity in `backend/src/entities/ingestion-log.entity.ts`
+- [X] T047b [P] Update ingestion service in `backend/src/modules/ingestion/ingestion.service.ts` to store confidence score from worker
+- [X] T047c [P] Add confidence display to `frontend/pages/competitions/[id].tsx` in the Details tab
+- [X] T047d [P] Add event filtering dropdown to `frontend/pages/competitions/[id].tsx` for multi-event PDFs (FR-008 frontend support)
+- [X] T047e Add backend endpoint to list events within a competition in `backend/src/modules/ingestion/ingestion.controller.ts`
 
 ---
 
@@ -153,12 +153,12 @@
 
 **Purpose**: Documentation, cleanup, and cross-cutting improvements
 
-- [ ] T048 [P] Update `worker/README.md` with OCR correction documentation
-- [ ] T049 [P] Update `quickstart.md` with actual test commands and expected outputs
+- [X] T048 [P] Update `worker/README.md` with OCR correction documentation
+- [X] T049 [P] Update `quickstart.md` with actual test commands and expected outputs
 - [ ] T050 Run full E2E test suite against ground truth PDF and verify all tests pass
-- [ ] T051 [P] Add performance logging for OCR processing time in `worker/worker.py`
-- [ ] T052 Document known OCR limitations in `specs/001-diving-analytics-mvp/research.md`
-- [ ] T053 Create troubleshooting guide at `docs/ocr-troubleshooting.md`
+- [X] T051 [P] Add performance logging for OCR processing time in `worker/worker.py`
+- [X] T052 Document known OCR limitations in `specs/001-diving-analytics-mvp/research.md`
+- [X] T053 Create troubleshooting guide at `specs/001-diving-analytics-mvp/ocr-troubleshooting.md`
 - [ ] T054 Standardize field naming across layers: use `judgeScores` (camelCase) everywhere - update `data-model.md`, `frontend/lib/api.ts`, and ensure backend entity uses consistent naming
 
 ---

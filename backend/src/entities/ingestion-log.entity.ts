@@ -65,6 +65,9 @@ export class IngestionLog {
   @Column({ name: 'completed_at', type: 'datetime', nullable: true })
   completedAt: Date;
 
+  @Column({ name: 'confidence', type: 'float', nullable: true })
+  confidence: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

@@ -1,6 +1,7 @@
 # Quickstart: OCR PDF Parsing Bug Fix Testing
 
 **Created**: 27 November 2025
+**Last Updated**: 27 November 2025
 
 ## Overview
 
@@ -14,6 +15,42 @@ This guide walks through setting up and running tests for the OCR PDF parsing bu
 - Node.js 18+ (for frontend tests)
 - Python 3.11+ (for worker tests)
 - pnpm or npm
+
+---
+
+## Quick Test Commands
+
+### Run All Tests
+
+```bash
+# From repository root
+
+# Worker OCR tests (Python)
+cd tests/worker
+PYTHONPATH=../../worker:.. python -m pytest test_ocr_extraction.py -v
+
+# Backend integration tests (TypeScript)
+cd backend
+npm run test
+npm run test:e2e
+
+# Frontend linting
+cd frontend
+npm run lint
+
+# Full pipeline tests (via GitHub Actions)
+# See .github/workflows/pipeline-tests.yml
+```
+
+### Accuracy Measurement
+
+```bash
+# Run accuracy measurement against ground truth
+cd tests/utils
+PYTHONPATH=../../worker:.. python accuracy.py --json-output
+
+# Expected output shows NFR-002 compliance (≥95% accuracy)
+```
 
 ---
 

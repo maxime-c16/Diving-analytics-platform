@@ -447,15 +447,16 @@ export class IngestionService {
     eventType: string;
     dives: any[];
     sourceJobId: string;
+    confidence?: number;
   }): Promise<IngestionStatusDto> {
-    const { competitionName, competitionDate, location, eventType, dives, sourceJobId } = params;
+    const { competitionName, competitionDate, location, eventType, dives, sourceJobId, confidence } = params;
     
     // Handle 'auto' mode - use per-dive heights, default to '3m' for competition record
     const isAutoHeight = eventType === 'auto';
     const defaultHeight = isAutoHeight ? '3m' : eventType;
     const height = defaultHeight as DivingHeight;
 
-    // Create ingestion log
+    // Create ingestion log with confidence score
     const ingestionLog = this.ingestionLogRepository.create({
       id: uuidv4(),
       fileName: `pdf-import-${sourceJobId}`,
@@ -463,6 +464,7 @@ export class IngestionService {
       fileSize: 0,
       status: IngestionStatus.PENDING,
       totalRows: dives.length,
+      confidence: confidence,
     });
     await this.ingestionLogRepository.save(ingestionLog);
 
@@ -808,6 +810,39 @@ export class IngestionService {
   }
 
   /**
+   * Get list of events within a competition
+   */
+  async getCompetitionEvents(id: string) {
+    // Try to find by ingestion job ID first
+    const log = await this.ingestionLogRepository.findOne({ where: { id } });
+    
+    let competitionId: number;
+    if (log && log.competitionId) {
+      competitionId = log.competitionId;
+    } else if (!isNaN(Number(id))) {
+      competitionId = Number(id);
+    } else {
+      throw new NotFoundException(`Competition not found for ID: ${id}`);
+    }
+
+    // Get all dives for this competition
+    const dives = await this.diveRepository.find({
+      where: { competitionId },
+      select: ['eventName'],
+    });
+
+    // Get list of unique events
+    const eventNames = [...new Set(dives.map(d => d.eventName).filter(Boolean))];
+    const hasMultipleEvents = eventNames.length > 1;
+
+    return {
+      competitionId,
+      eventNames,
+      hasMultipleEvents,
+    };
+  }
+
+  /**
    * Map IngestionLog entity to DTO
    */
   private mapToStatusDto(log: IngestionLog): IngestionStatusDto {
@@ -824,6 +859,7 @@ export class IngestionService {
       startedAt: log.startedAt,
       completedAt: log.completedAt,
       competitionId: log.competitionId,
+      confidence: log.confidence,
     };
   }
 }

@@ -542,7 +542,7 @@ The worker service will:
       );
     }
     
-    // Convert PDF extraction data to import format
+    // Convert PDF extraction data to import format, including confidence score
     const result = await this.ingestionService.importPdfData({
       competitionName: overrides.competitionName || status.competitionName || 'Imported Competition',
       competitionDate: overrides.competitionDate,
@@ -550,6 +550,7 @@ The worker service will:
       eventType: overrides.eventType || status.eventType || '3m',
       dives: status.dives,
       sourceJobId: jobId,
+      confidence: status.confidence,
     });
     
     return {
@@ -579,6 +580,40 @@ The worker service will:
   })
   async getCompetitionData(@Param('id') id: string) {
     return this.ingestionService.getCompetitionData(id);
+  }
+
+  @Get('competition/:id/events')
+  @ApiOperation({
+    summary: 'List events within a competition',
+    description: 'Get list of distinct events (e.g., "Elite - Dames - 3m") within a competition.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Competition ID (numeric) or Ingestion Job UUID',
+    example: '1',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of events within the competition',
+    schema: {
+      type: 'object',
+      properties: {
+        competitionId: { type: 'number', example: 1 },
+        eventNames: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['Elite - Dames - 3m', 'Elite - Messieurs - HV'],
+        },
+        hasMultipleEvents: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Competition not found',
+  })
+  async getCompetitionEvents(@Param('id') id: string) {
+    return this.ingestionService.getCompetitionEvents(id);
   }
 
   @Get('health')
