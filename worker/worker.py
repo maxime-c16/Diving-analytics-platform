@@ -1778,6 +1778,55 @@ class OCRHandler(BaseHTTPRequestHandler):
 	
 	def log_message(self, format, *args):
 		logger.info(f"HTTP: {args[0]}")
+	
+	def do_PUT(self):
+		"""Handle PUT requests for updating extracted data"""
+		# Parse URL to get job ID for update endpoint
+		if self.path.startswith('/job/') and self.path.endswith('/update'):
+			# Extract job ID from /job/{job_id}/update
+			parts = self.path.split('/')
+			if len(parts) >= 3:
+				job_id = parts[2]
+				
+				try:
+					content_length = int(self.headers.get('Content-Length', 0))
+					body = self.rfile.read(content_length).decode('utf-8')
+					data = json.loads(body)
+					
+					# Update the stored job data with new dives
+					if job_id in job_results:
+						if 'dives' in data:
+							job_results[job_id]['data']['dives'] = data['dives']
+							job_results[job_id]['data']['dives_count'] = len(data['dives'])
+							logger.info(f"Updated job {job_id} with {len(data['dives'])} dives")
+						
+						self.send_response(200)
+						self.send_header('Content-Type', 'application/json')
+						self.end_headers()
+						self.wfile.write(json.dumps({
+							'success': True,
+							'message': f"Updated {len(data.get('dives', []))} dives"
+						}).encode())
+						return
+					else:
+						self.send_response(404)
+						self.send_header('Content-Type', 'application/json')
+						self.end_headers()
+						self.wfile.write(json.dumps({
+							'error': 'Job not found'
+						}).encode())
+						return
+					
+				except Exception as e:
+					logger.error(f"Error updating job data: {e}")
+					self.send_response(500)
+					self.send_header('Content-Type', 'application/json')
+					self.end_headers()
+					self.wfile.write(json.dumps({'error': str(e)}).encode())
+					return
+		
+		self.send_response(404)
+		self.end_headers()
 
 
 def run_http_server(port: int = 8080):

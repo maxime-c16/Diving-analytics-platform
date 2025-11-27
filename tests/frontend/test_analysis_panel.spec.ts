@@ -7,8 +7,6 @@
  * Implements task T043 from Phase 6 (US4 - E2E Testing).
  */
 
-import React from 'react';
-
 // Note: This file contains test specifications for the analysis panel.
 // In a real testing environment, these would use a test runner like Jest + React Testing Library.
 // Since the frontend uses Next.js pages router, we document the expected behavior here.

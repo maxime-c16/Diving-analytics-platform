@@ -90,7 +90,7 @@ export default function CompetitionsPage() {
                 <Button variant="ghost" size="sm" className="text-primary">Competitions</Button>
               </Link>
               <Link href="/debug/ocr">
-                <Button variant="outline" size="sm" className="gap-1">
+                <Button variant="outline" size="sm" className="gap-1" aria-label="Open OCR debug interface">
                   <Bug className="h-4 w-4" /> Debug
                 </Button>
               </Link>

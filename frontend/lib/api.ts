@@ -210,6 +210,35 @@ class ApiClient {
     );
   }
 
+  // Update extracted dives before import
+  async updateExtractedDives(jobId: string, dives: ExtractedDive[]) {
+    return this.fetch<{ success: boolean; message: string }>(
+      `${API_BASE}/ingestion/pdf/update/${jobId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ dives }),
+      }
+    );
+  }
+
+  // Update dive in database after import
+  async updateDive(diveId: number, updates: Partial<{
+    athleteName: string;
+    diveCode: string;
+    roundNumber: number;
+    judgeScores: number[];
+    difficulty: number;
+    finalScore: number;
+  }>) {
+    return this.fetch<{ success: boolean; message: string }>(
+      `${API_BASE}/ingestion/dive/${diveId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      }
+    );
+  }
+
   // CSV upload
   async uploadCsv(
     file: File,

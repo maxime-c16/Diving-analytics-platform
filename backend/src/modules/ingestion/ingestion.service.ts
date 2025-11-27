@@ -862,4 +862,71 @@ export class IngestionService {
       confidence: log.confidence,
     };
   }
+
+  /**
+   * Update a dive in the database
+   */
+  async updateDive(
+    diveId: number,
+    updates: {
+      athleteName?: string;
+      diveCode?: string;
+      roundNumber?: number;
+      judgeScores?: number[];
+      difficulty?: number;
+      finalScore?: number;
+    },
+  ) {
+    const dive = await this.diveRepository.findOne({ where: { id: diveId } });
+    
+    if (!dive) {
+      throw new NotFoundException(`Dive with ID ${diveId} not found`);
+    }
+
+    // Apply updates
+    if (updates.diveCode !== undefined) {
+      dive.diveCode = updates.diveCode;
+      // Extract position from dive code
+      const position = updates.diveCode.slice(-1).toUpperCase();
+      if (['A', 'B', 'C', 'D'].includes(position)) {
+        dive.position = position;
+      }
+    }
+    
+    if (updates.roundNumber !== undefined) {
+      dive.roundNumber = updates.roundNumber;
+    }
+    
+    if (updates.judgeScores !== undefined) {
+      dive.judgesScores = updates.judgeScores;
+    }
+    
+    if (updates.difficulty !== undefined) {
+      dive.difficulty = updates.difficulty;
+    }
+    
+    if (updates.finalScore !== undefined) {
+      dive.finalScore = updates.finalScore;
+    }
+
+    // Handle athlete name update - need to find or create athlete
+    if (updates.athleteName !== undefined && updates.athleteName !== '') {
+      let athlete = await this.athleteRepository.findOne({
+        where: { name: updates.athleteName },
+      });
+      
+      if (!athlete) {
+        athlete = this.athleteRepository.create({
+          name: updates.athleteName,
+        });
+        await this.athleteRepository.save(athlete);
+      }
+      
+      dive.athleteId = athlete.id;
+    }
+
+    await this.diveRepository.save(dive);
+    
+    return dive;
+  }
 }

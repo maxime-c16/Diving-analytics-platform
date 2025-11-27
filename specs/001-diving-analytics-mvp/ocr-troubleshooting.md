@@ -267,7 +267,7 @@ If troubleshooting doesn't resolve the issue:
    - Original PDF (if shareable)
 
 2. **Check Known Issues:**
-   - Review `specs/001-diving-analytics-mvp/ocr-error-patterns.md`
+   - Review `specs/001-diving-analytics-mvp/research.md` (see section R6)
    - Check GitHub issues
 
 3. **Manual Data Entry:**

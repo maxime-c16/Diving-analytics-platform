@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   AlertTriangle,
@@ -16,9 +16,13 @@ import {
   User,
   Hash,
   Award,
+  Edit3,
+  Save,
+  X,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui"
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui"
+import { Button, Input, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui"
 import { cn } from "@/lib/utils"
 import type { PdfJobStatus, ExtractedDive } from "@/lib/api"
 
@@ -26,6 +30,9 @@ interface OcrDebugViewerProps {
   jobStatus: PdfJobStatus
   rawOcrText?: string
   pdfUrl?: string
+  onDiveUpdate?: (index: number, updatedDive: ExtractedDive) => Promise<void>
+  onSaveAllChanges?: (dives: ExtractedDive[]) => Promise<void>
+  editable?: boolean
 }
 
 // Confidence thresholds
@@ -140,6 +147,7 @@ function validateDive(dive: ExtractedDive, index: number): DiveValidation {
       if ((score * 2) !== Math.floor(score * 2)) {
         issues.push(`Judge score not on 0.5 increment: ${score}`)
         fieldStatus.judgeScores = "warning"
+        break
       }
     }
   }
@@ -181,13 +189,101 @@ function validateDive(dive: ExtractedDive, index: number): DiveValidation {
   return { dive, index, status, issues, fieldStatus }
 }
 
-// Dive row component with expandable details
-function DiveDebugRow({ validation, expanded, onToggle }: { 
+// Editable field component
+function EditableField({ 
+  label, 
+  value, 
+  onChange, 
+  type = "text",
+  status,
+  icon,
+  mono,
+  editing,
+  placeholder
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  type?: "text" | "number"
+  status: ValidationStatus
+  icon: React.ReactNode
+  mono?: boolean
+  editing: boolean
+  placeholder?: string
+}) {
+  if (editing) {
+    return (
+      <div className={cn("p-2 rounded border", getStatusBgColor(status))}>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+          {icon} {label}
+        </div>
+        <Input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn("h-7 text-sm", mono && "font-mono")}
+          placeholder={placeholder}
+        />
+      </div>
+    )
+  }
+  
+  return (
+    <div className={cn("p-2 rounded border", getStatusBgColor(status))}>
+      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+        {icon} {label}
+      </div>
+      <p className={cn("font-medium", mono && "font-mono", getStatusColor(status))}>{value || "—"}</p>
+    </div>
+  )
+}
+
+// Dive row component with expandable details and editing
+function DiveDebugRow({ 
+  validation, 
+  expanded, 
+  onToggle,
+  onUpdate,
+  editable = false,
+}: { 
   validation: DiveValidation
   expanded: boolean
-  onToggle: () => void 
+  onToggle: () => void
+  onUpdate?: (updatedDive: ExtractedDive) => void
+  editable?: boolean
 }) {
   const { dive, index, status, issues, fieldStatus } = validation
+  const [editing, setEditing] = useState(false)
+  const [editedDive, setEditedDive] = useState<ExtractedDive>({ ...dive })
+
+  const handleSave = () => {
+    if (onUpdate) {
+      onUpdate(editedDive)
+    }
+    setEditing(false)
+  }
+
+  const handleCancel = () => {
+    setEditedDive({ ...dive })
+    setEditing(false)
+  }
+
+  const updateField = (field: keyof ExtractedDive, value: string) => {
+    setEditedDive(prev => {
+      const updated = { ...prev }
+      if (field === 'judge_scores') {
+        // Parse comma-separated scores
+        updated.judge_scores = value.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+      } else if (field === 'round_number' || field === 'rank') {
+        (updated as any)[field] = parseInt(value) || undefined
+      } else if (field === 'difficulty' || field === 'final_score') {
+        (updated as any)[field] = parseFloat(value) || undefined
+      } else {
+        (updated as any)[field] = value
+      }
+      return updated
+    })
+  }
 
   return (
     <div className={cn("border rounded-lg overflow-hidden", getStatusBgColor(status))}>
@@ -218,50 +314,98 @@ function DiveDebugRow({ validation, expanded, onToggle }: {
             className="overflow-hidden"
           >
             <div className="p-4 pt-0 space-y-4 border-t">
+              {/* Edit controls */}
+              {editable && (
+                <div className="flex items-center justify-end gap-2">
+                  {editing ? (
+                    <>
+                      <Button size="sm" variant="outline" onClick={handleCancel}>
+                        <X className="h-3 w-3 mr-1" /> Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleSave}>
+                        <Save className="h-3 w-3 mr-1" /> Save
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                      <Edit3 className="h-3 w-3 mr-1" /> Edit
+                    </Button>
+                  )}
+                </div>
+              )}
+
               {/* Field Details Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <FieldDisplay
+                <EditableField
                   label="Athlete Name"
-                  value={dive.athlete_name || "—"}
+                  value={editing ? editedDive.athlete_name : (dive.athlete_name || "")}
+                  onChange={(v) => updateField('athlete_name', v)}
                   status={fieldStatus.athleteName}
                   icon={<User className="h-3 w-3" />}
+                  editing={editing}
+                  placeholder="Enter athlete name"
                 />
-                <FieldDisplay
+                <EditableField
                   label="Dive Code"
-                  value={dive.dive_code || "—"}
+                  value={editing ? editedDive.dive_code : (dive.dive_code || "")}
+                  onChange={(v) => updateField('dive_code', v)}
                   status={fieldStatus.diveCode}
                   icon={<Target className="h-3 w-3" />}
                   mono
+                  editing={editing}
+                  placeholder="e.g., 101B"
                 />
-                <FieldDisplay
+                <EditableField
                   label="Round"
-                  value={dive.round_number?.toString() || "—"}
+                  value={editing ? (editedDive.round_number?.toString() || "") : (dive.round_number?.toString() || "")}
+                  onChange={(v) => updateField('round_number', v)}
+                  type="number"
                   status={fieldStatus.roundNumber}
                   icon={<Hash className="h-3 w-3" />}
+                  editing={editing}
+                  placeholder="1"
                 />
-                <FieldDisplay
+                <EditableField
                   label="Difficulty"
-                  value={dive.difficulty?.toFixed(1) || "—"}
+                  value={editing ? (editedDive.difficulty?.toString() || "") : (dive.difficulty?.toFixed(1) || "")}
+                  onChange={(v) => updateField('difficulty', v)}
+                  type="number"
                   status={fieldStatus.difficulty}
                   icon={<Layers className="h-3 w-3" />}
+                  editing={editing}
+                  placeholder="2.0"
                 />
-                <FieldDisplay
+                <EditableField
                   label="Final Score"
-                  value={dive.final_score?.toFixed(2) || "—"}
+                  value={editing ? (editedDive.final_score?.toString() || "") : (dive.final_score?.toFixed(2) || "")}
+                  onChange={(v) => updateField('final_score', v)}
+                  type="number"
                   status={fieldStatus.finalScore}
                   icon={<Award className="h-3 w-3" />}
+                  editing={editing}
+                  placeholder="45.00"
                 />
+                {/* Judge Scores - special handling */}
                 <div className={cn("p-2 rounded border", getStatusBgColor(fieldStatus.judgeScores))}>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                     <Eye className="h-3 w-3" /> Judge Scores
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {dive.judge_scores?.map((score, i) => (
-                      <span key={i} className="font-mono text-xs bg-muted px-1 py-0.5 rounded">
-                        {score.toFixed(1)}
-                      </span>
-                    )) || <span className="text-muted-foreground">—</span>}
-                  </div>
+                  {editing ? (
+                    <Input
+                      value={editedDive.judge_scores?.join(', ') || ''}
+                      onChange={(e) => updateField('judge_scores', e.target.value)}
+                      className="h-7 text-sm font-mono"
+                      placeholder="7.0, 7.5, 8.0, 7.5, 7.0"
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {dive.judge_scores?.map((score, i) => (
+                        <span key={i} className="font-mono text-xs bg-muted px-1 py-0.5 rounded">
+                          {score.toFixed(1)}
+                        </span>
+                      )) || <span className="text-muted-foreground">—</span>}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -296,35 +440,27 @@ function DiveDebugRow({ validation, expanded, onToggle }: {
   )
 }
 
-// Field display component
-function FieldDisplay({ label, value, status, icon, mono }: {
-  label: string
-  value: string
-  status: ValidationStatus
-  icon: React.ReactNode
-  mono?: boolean
-}) {
-  return (
-    <div className={cn("p-2 rounded border", getStatusBgColor(status))}>
-      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-        {icon} {label}
-      </div>
-      <p className={cn("font-medium", mono && "font-mono", getStatusColor(status))}>{value}</p>
-    </div>
-  )
-}
-
 // Main component
-export function OcrDebugViewer({ jobStatus, rawOcrText, pdfUrl }: OcrDebugViewerProps) {
+export function OcrDebugViewer({ 
+  jobStatus, 
+  rawOcrText, 
+  pdfUrl,
+  onDiveUpdate,
+  onSaveAllChanges,
+  editable = false,
+}: OcrDebugViewerProps) {
   const [expandedDives, setExpandedDives] = useState<Set<number>>(new Set())
   const [showOnlyIssues, setShowOnlyIssues] = useState(false)
   const [activeTab, setActiveTab] = useState("dives")
+  const [editedDives, setEditedDives] = useState<ExtractedDive[]>(jobStatus.dives || [])
+  const [hasChanges, setHasChanges] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  // Validate all dives
+  // Validate all dives (using editedDives if there are changes)
   const validations = useMemo(() => {
-    if (!jobStatus.dives) return []
-    return jobStatus.dives.map((dive, index) => validateDive(dive, index))
-  }, [jobStatus.dives])
+    const dives = hasChanges ? editedDives : (jobStatus.dives || [])
+    return dives.map((dive, index) => validateDive(dive, index))
+  }, [jobStatus.dives, editedDives, hasChanges])
 
   // Filter validations if showing only issues
   const displayedValidations = useMemo(() => {
@@ -361,6 +497,36 @@ export function OcrDebugViewer({ jobStatus, rawOcrText, pdfUrl }: OcrDebugViewer
 
   const collapseAll = () => {
     setExpandedDives(new Set())
+  }
+
+  // Handle individual dive update
+  const handleDiveUpdate = useCallback((index: number, updatedDive: ExtractedDive) => {
+    setEditedDives(prev => {
+      const updated = [...prev]
+      updated[index] = updatedDive
+      return updated
+    })
+    setHasChanges(true)
+    
+    // Call the optional onDiveUpdate callback
+    if (onDiveUpdate) {
+      onDiveUpdate(index, updatedDive)
+    }
+  }, [onDiveUpdate])
+
+  // Handle save all changes
+  const handleSaveAll = async () => {
+    if (!onSaveAllChanges) return
+    
+    setSaving(true)
+    try {
+      await onSaveAllChanges(editedDives)
+      setHasChanges(false)
+    } catch (error) {
+      console.error('Failed to save changes:', error)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const confidence = jobStatus.confidence ?? 0
@@ -427,7 +593,7 @@ export function OcrDebugViewer({ jobStatus, rawOcrText, pdfUrl }: OcrDebugViewer
         {/* Dives Tab */}
         <TabsContent value="dives" className="space-y-4">
           {/* Controls */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Button
                 variant={showOnlyIssues ? "default" : "outline"}
@@ -443,6 +609,21 @@ export function OcrDebugViewer({ jobStatus, rawOcrText, pdfUrl }: OcrDebugViewer
               </span>
             </div>
             <div className="flex gap-2">
+              {editable && hasChanges && (
+                <Button 
+                  size="sm" 
+                  onClick={handleSaveAll}
+                  disabled={saving}
+                  className="gap-1"
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save All Changes
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={expandAll}>Expand All</Button>
               <Button variant="outline" size="sm" onClick={collapseAll}>Collapse All</Button>
             </div>
@@ -465,6 +646,8 @@ export function OcrDebugViewer({ jobStatus, rawOcrText, pdfUrl }: OcrDebugViewer
                   validation={validation}
                   expanded={expandedDives.has(validation.index)}
                   onToggle={() => toggleDive(validation.index)}
+                  editable={editable}
+                  onUpdate={(updatedDive) => handleDiveUpdate(validation.index, updatedDive)}
                 />
               ))
             )}

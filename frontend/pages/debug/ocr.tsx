@@ -4,9 +4,7 @@ import React, { useState, useCallback, useEffect } from "react"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { motion } from "framer-motion"
 import {
-  ArrowLeft,
   FileText,
   RefreshCw,
   Upload,
@@ -20,8 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui"
 import { GradientText } from "@/components/aceternity"
 import { OcrDebugViewer } from "@/components/ocr-debug-viewer"
-import { api, type PdfJobStatus } from "@/lib/api"
-import { cn } from "@/lib/utils"
+import { api, type PdfJobStatus, type ExtractedDive } from "@/lib/api"
 
 export default function OcrDebugPage() {
   const router = useRouter()
@@ -112,6 +109,25 @@ export default function OcrDebugPage() {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl)
     }
   }, [pdfUrl])
+
+  // Handle saving all changes to extracted dives
+  const handleSaveAllChanges = useCallback(async (dives: ExtractedDive[]) => {
+    if (!jobStatus?.jobId && !pollingJobId && !jobId) {
+      setError("No job ID available")
+      return
+    }
+    
+    const currentJobId = jobStatus?.jobId || pollingJobId || (jobId as string)
+    
+    try {
+      await api.updateExtractedDives(currentJobId, dives)
+      // Refresh job status to reflect changes
+      await fetchJobStatus(currentJobId)
+    } catch (err: any) {
+      setError(err.message || "Failed to save changes")
+      throw err
+    }
+  }, [jobStatus?.jobId, pollingJobId, jobId, fetchJobStatus])
 
   const isProcessing = jobStatus?.status === "processing" || jobStatus?.status === "queued" || !!pollingJobId
 
@@ -337,6 +353,8 @@ export default function OcrDebugPage() {
               {jobStatus && jobStatus.status !== "queued" && jobStatus.status !== "processing" && (
                 <OcrDebugViewer 
                   jobStatus={jobStatus}
+                  editable={true}
+                  onSaveAllChanges={handleSaveAllChanges}
                 />
               )}
             </div>
