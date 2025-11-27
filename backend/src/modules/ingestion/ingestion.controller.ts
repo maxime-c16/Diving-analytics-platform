@@ -2,6 +2,8 @@ import {
   Controller,
   Post,
   Get,
+  Put,
+  Patch,
   Body,
   Param,
   Query,
@@ -542,7 +544,7 @@ The worker service will:
       );
     }
     
-    // Convert PDF extraction data to import format
+    // Convert PDF extraction data to import format, including confidence score
     const result = await this.ingestionService.importPdfData({
       competitionName: overrides.competitionName || status.competitionName || 'Imported Competition',
       competitionDate: overrides.competitionDate,
@@ -550,12 +552,140 @@ The worker service will:
       eventType: overrides.eventType || status.eventType || '3m',
       dives: status.dives,
       sourceJobId: jobId,
+      confidence: status.confidence,
     });
     
     return {
       success: true,
       message: `Imported ${result.processedRows} dives from PDF extraction.`,
       data: result,
+    };
+  }
+
+  @Put('pdf/update/:jobId')
+  @ApiOperation({
+    summary: 'Update extracted PDF data before import',
+    description: 'Update the extracted dive data from a completed PDF OCR job before importing it.',
+  })
+  @ApiParam({
+    name: 'jobId',
+    description: 'PDF job ID of a completed job',
+    example: 'pdf-a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  })
+  @ApiBody({
+    description: 'Updated dives array',
+    schema: {
+      type: 'object',
+      properties: {
+        dives: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              athlete_name: { type: 'string' },
+              dive_code: { type: 'string' },
+              round_number: { type: 'number' },
+              judge_scores: { type: 'array', items: { type: 'number' } },
+              difficulty: { type: 'number' },
+              final_score: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Extracted dives updated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Job not found',
+  })
+  async updateExtractedDives(
+    @Param('jobId') jobId: string,
+    @Body() body: { dives: any[] },
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      // Forward the update request to the worker service
+      const response = await fetch(`${WORKER_URL}/job/${jobId}/update`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dives: body.dives }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
+        }
+        throw new HttpException(
+          'Failed to update extracted dives',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+
+      return {
+        success: true,
+        message: `Updated ${body.dives.length} extracted dives`,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to update extracted dives: ${error.message}`,
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @Patch('dive/:id')
+  @ApiOperation({
+    summary: 'Update a dive in the database',
+    description: 'Update a specific dive record after it has been imported into the database.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Dive ID',
+    example: '1',
+  })
+  @ApiBody({
+    description: 'Dive fields to update',
+    schema: {
+      type: 'object',
+      properties: {
+        athleteName: { type: 'string' },
+        diveCode: { type: 'string' },
+        roundNumber: { type: 'number' },
+        judgeScores: { type: 'array', items: { type: 'number' } },
+        difficulty: { type: 'number' },
+        finalScore: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Dive updated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Dive not found',
+  })
+  async updateDive(
+    @Param('id') id: string,
+    @Body() updates: {
+      athleteName?: string;
+      diveCode?: string;
+      roundNumber?: number;
+      judgeScores?: number[];
+      difficulty?: number;
+      finalScore?: number;
+    },
+  ): Promise<{ success: boolean; message: string }> {
+    const result = await this.ingestionService.updateDive(parseInt(id, 10), updates);
+    return {
+      success: true,
+      message: 'Dive updated successfully',
     };
   }
 
@@ -579,6 +709,40 @@ The worker service will:
   })
   async getCompetitionData(@Param('id') id: string) {
     return this.ingestionService.getCompetitionData(id);
+  }
+
+  @Get('competition/:id/events')
+  @ApiOperation({
+    summary: 'List events within a competition',
+    description: 'Get list of distinct events (e.g., "Elite - Dames - 3m") within a competition.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Competition ID (numeric) or Ingestion Job UUID',
+    example: '1',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'List of events within the competition',
+    schema: {
+      type: 'object',
+      properties: {
+        competitionId: { type: 'number', example: 1 },
+        eventNames: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['Elite - Dames - 3m', 'Elite - Messieurs - HV'],
+        },
+        hasMultipleEvents: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Competition not found',
+  })
+  async getCompetitionEvents(@Param('id') id: string) {
+    return this.ingestionService.getCompetitionEvents(id);
   }
 
   @Get('health')

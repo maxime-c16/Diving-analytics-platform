@@ -1375,14 +1375,18 @@ class PDFOCRProcessor:
 	def process_pdf_bytes(self, pdf_bytes: bytes) -> ExtractionResult:
 		"""Process PDF from bytes and extract diving data"""
 		try:
+			start_time = time.time()
+			
 			# Convert PDF to images
 			logger.info("Converting PDF to images...")
+			pdf_convert_start = time.time()
 			images = convert_from_bytes(
 				pdf_bytes,
 				dpi=self.dpi,
 				fmt='png',
 				thread_count=2
 			)
+			pdf_convert_time = time.time() - pdf_convert_start
 			
 			if not images:
 				return ExtractionResult(
@@ -1390,11 +1394,13 @@ class PDFOCRProcessor:
 					errors=["Failed to convert PDF to images"]
 				)
 			
-			logger.info(f"Converted {len(images)} pages")
+			logger.info(f"Converted {len(images)} pages in {pdf_convert_time:.2f}s")
 			
 			# Extract text from each page
 			all_text = []
+			ocr_total_time = 0
 			for i, image in enumerate(images):
+				page_start = time.time()
 				logger.info(f"Processing page {i + 1}/{len(images)}...")
 				
 				# Preprocess image for better OCR
@@ -1407,13 +1413,31 @@ class PDFOCRProcessor:
 					config='--psm 6'  # Assume uniform block of text
 				)
 				
+				page_time = time.time() - page_start
+				ocr_total_time += page_time
+				logger.info(f"Page {i + 1} OCR completed in {page_time:.2f}s ({len(text)} chars)")
+				
 				all_text.append(f"--- PAGE {i + 1} ---\n{text}")
 			
 			combined_text = '\n\n'.join(all_text)
-			logger.info(f"Extracted {len(combined_text)} characters")
+			logger.info(f"Total OCR time: {ocr_total_time:.2f}s for {len(combined_text)} characters")
 			
 			# Parse the extracted text
+			parse_start = time.time()
 			result = self.parser.parse_text(combined_text)
+			parse_time = time.time() - parse_start
+			
+			total_time = time.time() - start_time
+			
+			# Log performance summary
+			logger.info(
+				f"PDF processing complete - Total: {total_time:.2f}s | "
+				f"PDF→Image: {pdf_convert_time:.2f}s | "
+				f"OCR: {ocr_total_time:.2f}s | "
+				f"Parse: {parse_time:.2f}s | "
+				f"Pages: {len(images)} | "
+				f"Dives: {len(result.dives) if result.dives else 0}"
+			)
 			
 			return result
 			
@@ -1754,6 +1778,55 @@ class OCRHandler(BaseHTTPRequestHandler):
 	
 	def log_message(self, format, *args):
 		logger.info(f"HTTP: {args[0]}")
+	
+	def do_PUT(self):
+		"""Handle PUT requests for updating extracted data"""
+		# Parse URL to get job ID for update endpoint
+		if self.path.startswith('/job/') and self.path.endswith('/update'):
+			# Extract job ID from /job/{job_id}/update
+			parts = self.path.split('/')
+			if len(parts) >= 3:
+				job_id = parts[2]
+				
+				try:
+					content_length = int(self.headers.get('Content-Length', 0))
+					body = self.rfile.read(content_length).decode('utf-8')
+					data = json.loads(body)
+					
+					# Update the stored job data with new dives
+					if job_id in job_results:
+						if 'dives' in data:
+							job_results[job_id]['data']['dives'] = data['dives']
+							job_results[job_id]['data']['dives_count'] = len(data['dives'])
+							logger.info(f"Updated job {job_id} with {len(data['dives'])} dives")
+						
+						self.send_response(200)
+						self.send_header('Content-Type', 'application/json')
+						self.end_headers()
+						self.wfile.write(json.dumps({
+							'success': True,
+							'message': f"Updated {len(data.get('dives', []))} dives"
+						}).encode())
+						return
+					else:
+						self.send_response(404)
+						self.send_header('Content-Type', 'application/json')
+						self.end_headers()
+						self.wfile.write(json.dumps({
+							'error': 'Job not found'
+						}).encode())
+						return
+					
+				except Exception as e:
+					logger.error(f"Error updating job data: {e}")
+					self.send_response(500)
+					self.send_header('Content-Type', 'application/json')
+					self.end_headers()
+					self.wfile.write(json.dumps({'error': str(e)}).encode())
+					return
+		
+		self.send_response(404)
+		self.end_headers()
 
 
 def run_http_server(port: int = 8080):

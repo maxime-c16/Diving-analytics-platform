@@ -115,6 +115,12 @@ export class IngestionStatusDto {
     example: 1,
   })
   competitionId?: number;
+
+  @ApiPropertyOptional({
+    description: 'OCR extraction confidence score (0.0 - 1.0)',
+    example: 0.85,
+  })
+  confidence?: number;
 }
 
 export class IngestionResponseDto {

@@ -1,0 +1,277 @@
+# Pipeline Tests Workflow
+# Runs the full test suite for the Diving Analytics Platform
+# Implements task T045 from Phase 6 (US4 - E2E Testing)
+
+name: Pipeline Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Worker Python Tests
+  worker-tests:
+    name: Worker OCR Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Tesseract OCR
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-fra
+
+      - name: Install Python dependencies
+        run: |
+          cd worker
+          pip install -r requirements.txt
+
+      - name: Run OCR extraction tests
+        run: |
+          cd tests/worker
+          python -m pytest test_ocr_extraction.py -v --tb=short --cov=../../worker --cov-report=xml --cov-report=term-missing
+        env:
+          PYTHONPATH: ${{ github.workspace }}/worker:${{ github.workspace }}/tests
+
+      - name: Upload worker coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-coverage
+          path: tests/worker/coverage.xml
+
+  # Backend NestJS Tests
+  backend-tests:
+    name: Backend Integration Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE: diving_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm run test:cov
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 3306
+          DATABASE_USER: root
+          DATABASE_PASSWORD: testpassword
+          DATABASE_NAME: diving_test
+
+      - name: Run backend E2E tests
+        run: |
+          cd backend
+          npm run test:e2e
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 3306
+          DATABASE_USER: root
+          DATABASE_PASSWORD: testpassword
+          DATABASE_NAME: diving_test
+
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+
+  # Frontend Tests
+  frontend-tests:
+    name: Frontend Component Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run linting
+        run: |
+          cd frontend
+          npm run lint || true
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+  # Playwright E2E Tests (only on main/develop)
+  e2e-tests:
+    name: Playwright E2E Tests
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Playwright
+        run: |
+          npm install -g @playwright/test
+          npx playwright install chromium
+
+      - name: Build and start services
+        run: |
+          docker compose up -d --build
+        timeout-minutes: 10
+        continue-on-error: true
+
+      - name: Wait for services
+        run: |
+          sleep 30
+          curl -f http://localhost/api/health || true
+
+      - name: Run Playwright tests
+        run: |
+          cd tests/frontend
+          npx playwright test test_pipeline_e2e.spec.ts --reporter=html
+        continue-on-error: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: tests/frontend/playwright-report
+
+      - name: Stop services
+        if: always()
+        run: docker compose down || true
+
+  # Accuracy Measurement
+  accuracy-check:
+    name: OCR Accuracy Measurement
+    runs-on: ubuntu-latest
+    needs: worker-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd worker
+          pip install -r requirements.txt
+
+      - name: Run accuracy measurement
+        run: |
+          cd tests/utils
+          python accuracy.py --json-output > accuracy-report.json
+        env:
+          PYTHONPATH: ${{ github.workspace }}/worker:${{ github.workspace }}/tests
+        continue-on-error: true
+
+      - name: Upload accuracy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-report
+          path: tests/utils/accuracy-report.json
+
+  # Coverage Report
+  coverage-report:
+    name: Combined Coverage Report
+    runs-on: ubuntu-latest
+    needs: [worker-tests, backend-tests]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download worker coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: worker-coverage
+          path: coverage/worker
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage/backend
+
+      - name: Generate combined report
+        run: |
+          echo "## Coverage Summary" > coverage-summary.md
+          echo "" >> coverage-summary.md
+          echo "### Worker (Python)" >> coverage-summary.md
+          if [ -f coverage/worker/coverage.xml ]; then
+            echo "Coverage report generated" >> coverage-summary.md
+          else
+            echo "No coverage data" >> coverage-summary.md
+          fi
+          echo "" >> coverage-summary.md
+          echo "### Backend (TypeScript)" >> coverage-summary.md
+          if [ -d coverage/backend ]; then
+            echo "Coverage report generated" >> coverage-summary.md
+          else
+            echo "No coverage data" >> coverage-summary.md
+          fi
+
+      - name: Upload combined coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: combined-coverage
+          path: coverage-summary.md

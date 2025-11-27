@@ -447,15 +447,16 @@ export class IngestionService {
     eventType: string;
     dives: any[];
     sourceJobId: string;
+    confidence?: number;
   }): Promise<IngestionStatusDto> {
-    const { competitionName, competitionDate, location, eventType, dives, sourceJobId } = params;
+    const { competitionName, competitionDate, location, eventType, dives, sourceJobId, confidence } = params;
     
     // Handle 'auto' mode - use per-dive heights, default to '3m' for competition record
     const isAutoHeight = eventType === 'auto';
     const defaultHeight = isAutoHeight ? '3m' : eventType;
     const height = defaultHeight as DivingHeight;
 
-    // Create ingestion log
+    // Create ingestion log with confidence score
     const ingestionLog = this.ingestionLogRepository.create({
       id: uuidv4(),
       fileName: `pdf-import-${sourceJobId}`,
@@ -463,6 +464,7 @@ export class IngestionService {
       fileSize: 0,
       status: IngestionStatus.PENDING,
       totalRows: dives.length,
+      confidence: confidence,
     });
     await this.ingestionLogRepository.save(ingestionLog);
 
@@ -808,6 +810,39 @@ export class IngestionService {
   }
 
   /**
+   * Get list of events within a competition
+   */
+  async getCompetitionEvents(id: string) {
+    // Try to find by ingestion job ID first
+    const log = await this.ingestionLogRepository.findOne({ where: { id } });
+    
+    let competitionId: number;
+    if (log && log.competitionId) {
+      competitionId = log.competitionId;
+    } else if (!isNaN(Number(id))) {
+      competitionId = Number(id);
+    } else {
+      throw new NotFoundException(`Competition not found for ID: ${id}`);
+    }
+
+    // Get all dives for this competition
+    const dives = await this.diveRepository.find({
+      where: { competitionId },
+      select: ['eventName'],
+    });
+
+    // Get list of unique events
+    const eventNames = [...new Set(dives.map(d => d.eventName).filter(Boolean))];
+    const hasMultipleEvents = eventNames.length > 1;
+
+    return {
+      competitionId,
+      eventNames,
+      hasMultipleEvents,
+    };
+  }
+
+  /**
    * Map IngestionLog entity to DTO
    */
   private mapToStatusDto(log: IngestionLog): IngestionStatusDto {
@@ -824,6 +859,74 @@ export class IngestionService {
       startedAt: log.startedAt,
       completedAt: log.completedAt,
       competitionId: log.competitionId,
+      confidence: log.confidence,
     };
+  }
+
+  /**
+   * Update a dive in the database
+   */
+  async updateDive(
+    diveId: number,
+    updates: {
+      athleteName?: string;
+      diveCode?: string;
+      roundNumber?: number;
+      judgeScores?: number[];
+      difficulty?: number;
+      finalScore?: number;
+    },
+  ) {
+    const dive = await this.diveRepository.findOne({ where: { id: diveId } });
+    
+    if (!dive) {
+      throw new NotFoundException(`Dive with ID ${diveId} not found`);
+    }
+
+    // Apply updates
+    if (updates.diveCode !== undefined) {
+      dive.diveCode = updates.diveCode;
+      // Extract position from dive code
+      const position = updates.diveCode.slice(-1).toUpperCase();
+      if (['A', 'B', 'C', 'D'].includes(position)) {
+        dive.position = position;
+      }
+    }
+    
+    if (updates.roundNumber !== undefined) {
+      dive.roundNumber = updates.roundNumber;
+    }
+    
+    if (updates.judgeScores !== undefined) {
+      dive.judgesScores = updates.judgeScores;
+    }
+    
+    if (updates.difficulty !== undefined) {
+      dive.difficulty = updates.difficulty;
+    }
+    
+    if (updates.finalScore !== undefined) {
+      dive.finalScore = updates.finalScore;
+    }
+
+    // Handle athlete name update - need to find or create athlete
+    if (updates.athleteName !== undefined && updates.athleteName !== '') {
+      let athlete = await this.athleteRepository.findOne({
+        where: { name: updates.athleteName },
+      });
+      
+      if (!athlete) {
+        athlete = this.athleteRepository.create({
+          name: updates.athleteName,
+        });
+        await this.athleteRepository.save(athlete);
+      }
+      
+      dive.athleteId = athlete.id;
+    }
+
+    await this.diveRepository.save(dive);
+    
+    return dive;
   }
 }
