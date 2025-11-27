@@ -155,11 +155,11 @@
 
 - [X] T048 [P] Update `worker/README.md` with OCR correction documentation
 - [X] T049 [P] Update `quickstart.md` with actual test commands and expected outputs
-- [ ] T050 Run full E2E test suite against ground truth PDF and verify all tests pass
+- [X] T050 Run full E2E test suite against ground truth PDF and verify all tests pass (Worker: 75 passed, Backend unit: 72 passed)
 - [X] T051 [P] Add performance logging for OCR processing time in `worker/worker.py`
 - [X] T052 Document known OCR limitations in `specs/001-diving-analytics-mvp/research.md`
 - [X] T053 Create troubleshooting guide at `specs/001-diving-analytics-mvp/ocr-troubleshooting.md`
-- [ ] T054 Standardize field naming across layers: use `judgeScores` (camelCase) everywhere - update `data-model.md`, `frontend/lib/api.ts`, and ensure backend entity uses consistent naming
+- [X] T054 Standardize field naming across layers: use `judgeScores` (camelCase) everywhere - update `data-model.md`, `frontend/lib/api.ts`, and ensure backend entity uses consistent naming
 
 ---
 

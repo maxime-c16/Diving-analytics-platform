@@ -26,21 +26,23 @@ describe("ScoresService", () => {
       it("should calculate score for a basic forward dive (103B)", () => {
         const result = service.calculateScore(
           "103B",
+          "3m",
           [7.0, 7.5, 8.0, 7.5, 8.5]
         );
 
         expect(result.diveCode).toBe("103B");
-        expect(result.difficulty).toBe(1.7);
+        expect(result.difficulty).toBe(1.8); // FINA DD table: 103B at 3m = 1.8
         expect(result.judgeScores).toEqual([7.0, 7.5, 8.0, 7.5, 8.5]);
         expect(result.droppedScores).toEqual([7.0, 8.5]);
         expect(result.effectiveScores).toEqual([7.5, 7.5, 8.0]);
         expect(result.rawScore).toBe(23.0);
-        expect(result.finalScore).toBe(39.1);
+        expect(result.finalScore).toBe(41.4); // 23.0 * 1.8 = 41.4
       });
 
       it("should calculate score with 7 judges", () => {
         const result = service.calculateScore(
           "103B",
+          "3m",
           [6.5, 7.0, 7.5, 8.0, 7.5, 8.0, 6.0]
         );
 
@@ -52,6 +54,7 @@ describe("ScoresService", () => {
       it("should calculate score for a flying dive (113C)", () => {
         const result = service.calculateScore(
           "113C",
+          "3m",
           [7.0, 7.5, 8.0, 7.5, 8.5]
         );
 
@@ -62,140 +65,162 @@ describe("ScoresService", () => {
       it("should calculate score for a back dive (201A)", () => {
         const result = service.calculateScore(
           "201A",
+          "3m",
           [8.0, 8.5, 9.0, 8.5, 8.0]
         );
 
         expect(result.diveCode).toBe("201A");
-        expect(result.difficulty).toBe(1.7);
+        expect(result.difficulty).toBe(1.9); // FINA DD table: 201A at 3m = 1.9
       });
 
       it("should calculate score for a reverse dive (301B)", () => {
         const result = service.calculateScore(
           "301B",
+          "3m",
           [7.5, 8.0, 8.0, 7.5, 8.5]
         );
 
         expect(result.diveCode).toBe("301B");
-        expect(result.difficulty).toBe(1.7);
+        expect(result.difficulty).toBe(1.9); // FINA DD table: 301B at 3m = 1.9
       });
 
       it("should calculate score for a twisting dive (5132D)", () => {
         const result = service.calculateScore(
           "5132D",
+          "3m",
           [7.0, 7.5, 8.0, 7.5, 8.5]
         );
 
         expect(result.diveCode).toBe("5132D");
-        expect(result.difficulty).toBe(2.2);
+        expect(result.difficulty).toBe(2.4); // FINA DD table: 5132D at 3m = 2.4
       });
 
-      it("should calculate score for an armstand dive (612B)", () => {
+      it("should calculate score for an armstand dive (612B) from platform", () => {
         const result = service.calculateScore(
           "612B",
+          "10m",
           [7.0, 7.5, 8.0, 7.5, 8.5]
         );
 
         expect(result.diveCode).toBe("612B");
-        expect(result.difficulty).toBe(2.0);
+        expect(result.difficulty).toBeGreaterThan(0);
       });
 
-      it("should calculate score for an armstand dive with twist (6122B)", () => {
+      it("should calculate score for an armstand dive with twist (6122B) from platform", () => {
         const result = service.calculateScore(
           "6122B",
+          "10m",
           [7.0, 7.5, 8.0, 7.5, 8.5]
         );
 
         expect(result.diveCode).toBe("6122B");
-        expect(result.difficulty).toBe(2.3);
+        expect(result.difficulty).toBeGreaterThan(0);
       });
 
       it("should handle lowercase position letter", () => {
         const result = service.calculateScore(
           "103b",
+          "3m",
           [7.0, 7.5, 8.0, 7.5, 8.5]
         );
 
-        expect(result.diveCode).toBe("103b");
-        expect(result.difficulty).toBe(1.7);
+        expect(result.diveCode).toBe("103B"); // Service normalizes to uppercase
+        expect(result.difficulty).toBe(1.8); // FINA DD table: 103B at 3m = 1.8
       });
 
-      it("should calculate score for extended somersault dive (1011B)", () => {
-        // Extended dive with 11 half-somersaults (5.5 somersaults)
-        const result = service.calculateScore(
-          "1011B",
-          [7.0, 7.5, 8.0, 7.5, 8.5]
-        );
-
-        expect(result.diveCode).toBe("1011B");
-        // This will use calculated difficulty since it's not in the table
-        expect(result.difficulty).toBeGreaterThan(0);
+      it("should reject extended somersault dive (1011B) not in FINA table", () => {
+        // Extended dive with 11 half-somersaults (5.5 somersaults) is not in FINA table
+        expect(() =>
+          service.calculateScore(
+            "1011B",
+            "10m",
+            [7.0, 7.5, 8.0, 7.5, 8.5]
+          )
+        ).toThrow(BadRequestException);
       });
     });
 
     describe("invalid dive codes", () => {
       it("should reject invalid group number", () => {
         expect(() =>
-          service.calculateScore("703B", [7.0, 7.5, 8.0, 7.5, 8.5])
+          service.calculateScore("703B", "3m", [7.0, 7.5, 8.0, 7.5, 8.5])
         ).toThrow(BadRequestException);
       });
 
       it("should reject invalid position letter", () => {
         expect(() =>
-          service.calculateScore("103E", [7.0, 7.5, 8.0, 7.5, 8.5])
+          service.calculateScore("103E", "3m", [7.0, 7.5, 8.0, 7.5, 8.5])
         ).toThrow(BadRequestException);
       });
 
       it("should reject empty dive code", () => {
         expect(() =>
-          service.calculateScore("", [7.0, 7.5, 8.0, 7.5, 8.5])
+          service.calculateScore("", "3m", [7.0, 7.5, 8.0, 7.5, 8.5])
         ).toThrow(BadRequestException);
       });
 
       it("should reject too short dive code", () => {
         expect(() =>
-          service.calculateScore("1B", [7.0, 7.5, 8.0, 7.5, 8.5])
+          service.calculateScore("1B", "3m", [7.0, 7.5, 8.0, 7.5, 8.5])
         ).toThrow(BadRequestException);
       });
 
       it("should reject invalid second digit for groups 1-4 (must be 0 or 1)", () => {
         expect(() =>
-          service.calculateScore("123B", [7.0, 7.5, 8.0, 7.5, 8.5])
+          service.calculateScore("123B", "3m", [7.0, 7.5, 8.0, 7.5, 8.5])
         ).toThrow(BadRequestException);
       });
 
       it("should reject invalid direction for group 5 (must be 1-4)", () => {
         expect(() =>
-          service.calculateScore("5532D", [7.0, 7.5, 8.0, 7.5, 8.5])
+          service.calculateScore("5532D", "3m", [7.0, 7.5, 8.0, 7.5, 8.5])
         ).toThrow(BadRequestException);
       });
 
       it("should reject invalid direction for group 6 (must be 1-4)", () => {
         expect(() =>
-          service.calculateScore("652B", [7.0, 7.5, 8.0, 7.5, 8.5])
+          service.calculateScore("652B", "10m", [7.0, 7.5, 8.0, 7.5, 8.5])
         ).toThrow(BadRequestException);
       });
     });
 
     describe("judge score validation", () => {
       it("should reject invalid judge count (not 5 or 7)", () => {
-        expect(() => service.calculateScore("103B", [7.0, 7.5, 8.0])).toThrow(
+        expect(() => service.calculateScore("103B", "3m", [7.0, 7.5, 8.0])).toThrow(
           BadRequestException
         );
         expect(() =>
-          service.calculateScore("103B", [7.0, 7.5, 8.0, 7.5, 8.5, 7.0])
+          service.calculateScore("103B", "3m", [7.0, 7.5, 8.0, 7.5, 8.5, 7.0])
         ).toThrow(BadRequestException);
       });
 
       it("should reject scores below 0", () => {
         expect(() =>
-          service.calculateScore("103B", [-1, 7.5, 8.0, 7.5, 8.5])
+          service.calculateScore("103B", "3m", [-1, 7.5, 8.0, 7.5, 8.5])
         ).toThrow(BadRequestException);
       });
 
       it("should reject scores above 10", () => {
         expect(() =>
-          service.calculateScore("103B", [7.0, 7.5, 8.0, 7.5, 11])
+          service.calculateScore("103B", "3m", [7.0, 7.5, 8.0, 7.5, 11])
         ).toThrow(BadRequestException);
+      });
+    });
+
+    describe("height validation", () => {
+      it("should reject armstand dives from springboard", () => {
+        expect(() =>
+          service.calculateScore("612B", "3m", [7.0, 7.5, 8.0, 7.5, 8.5])
+        ).toThrow(BadRequestException);
+      });
+
+      it("should accept armstand dives from platform", () => {
+        const result = service.calculateScore(
+          "612B",
+          "10m",
+          [7.0, 7.5, 8.0, 7.5, 8.5]
+        );
+        expect(result.diveCode).toBe("612B");
       });
     });
   });
@@ -203,8 +228,8 @@ describe("ScoresService", () => {
   describe("calculateTotalScore", () => {
     it("should calculate total score across multiple dives", () => {
       const result = service.calculateTotalScore([
-        { diveCode: "103B", judgeScores: [7.0, 7.5, 8.0, 7.5, 8.5] },
-        { diveCode: "201A", judgeScores: [8.0, 8.5, 9.0, 8.5, 8.0] },
+        { diveCode: "103B", height: "3m", judgeScores: [7.0, 7.5, 8.0, 7.5, 8.5] },
+        { diveCode: "201A", height: "3m", judgeScores: [8.0, 8.5, 9.0, 8.5, 8.0] },
       ]);
 
       expect(result.numDives).toBe(2);

@@ -80,6 +80,8 @@ services:
       compute-service:
         condition: service_healthy
     restart: unless-stopped
+    ports:
+      - "3000:3000"
     networks:
       - backend-network
       - database-network

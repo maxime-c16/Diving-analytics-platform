@@ -4,10 +4,7 @@ const nextConfig = {
   // This creates a minimal production server with only necessary files
   output: 'standalone',
   
-  // Disable telemetry in production
-  telemetry: {
-    disabled: true,
-  },
+  // Note: telemetry is disabled via NEXT_TELEMETRY_DISABLED=1 env var
   
   // Optimize images
   images: {

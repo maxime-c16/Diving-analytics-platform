@@ -316,7 +316,7 @@ export interface ExtractedDive {
   athlete_name: string;
   dive_code: string;
   round_number: number;
-  judge_scores?: number[];
+  judgeScores?: number[];  // Standardized: camelCase 'judgeScores' across all layers
   difficulty?: number;
   final_score?: number;
   rank?: number;

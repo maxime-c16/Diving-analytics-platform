@@ -21,6 +21,23 @@ import { IngestionLog } from "./entities/ingestion-log.entity";
       entities: [Athlete, Competition, Dive, IngestionLog],
       synchronize: true, // Auto-create tables
       logging: process.env.NODE_ENV !== 'production',
+      // Improve robustness for CI/local flaky DB connections
+      retryAttempts: 10,
+      retryDelay: 3000,
+      extra: {
+        // Connection pool size
+        connectionLimit: parseInt(process.env.DB_CONN_LIMIT || '50', 10),
+        // Wait for connections rather than erroring out immediately
+        waitForConnections: true,
+        // Driver-level connect timeout (ms)
+        connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '30000', 10),
+        // Queue limit for waiting connection requests (0 = unlimited)
+        queueLimit: 0,
+        // Acquire timeout - how long to wait for a connection from pool
+        acquireTimeout: 60000,
+        // Idle timeout - close connections idle longer than this (ms)
+        idleTimeout: 60000,
+      },
     }),
     ScoresModule,
     IngestionModule,

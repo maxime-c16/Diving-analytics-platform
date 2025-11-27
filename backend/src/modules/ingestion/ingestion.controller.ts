@@ -432,8 +432,15 @@ The worker service will:
     description: 'Job not found',
   })
   async getPdfStatus(@Param('jobId') jobId: string): Promise<PdfJobStatusDto> {
+    // Handle case where user passes the ingestion log fileName instead of the original job ID
+    // e.g., "pdf-import-pdf-xxx" should be converted to "pdf-xxx"
+    let actualJobId = jobId;
+    if (jobId.startsWith('pdf-import-')) {
+      actualJobId = jobId.replace('pdf-import-', '');
+    }
+    
     try {
-      const response = await fetch(`${WORKER_URL}/job/${jobId}`);
+      const response = await fetch(`${WORKER_URL}/job/${actualJobId}`);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -448,7 +455,7 @@ The worker service will:
       const data = await response.json();
       
       return {
-        jobId,
+        jobId: actualJobId,  // Return the actual worker job ID
         status: data.status,
         message: data.data?.message,
         confidence: data.data?.confidence,
@@ -606,9 +613,15 @@ The worker service will:
     @Param('jobId') jobId: string,
     @Body() body: { dives: any[] },
   ): Promise<{ success: boolean; message: string }> {
+    // Handle case where user passes the ingestion log fileName instead of the original job ID
+    let actualJobId = jobId;
+    if (jobId.startsWith('pdf-import-')) {
+      actualJobId = jobId.replace('pdf-import-', '');
+    }
+    
     try {
       // Forward the update request to the worker service
-      const response = await fetch(`${WORKER_URL}/job/${jobId}/update`, {
+      const response = await fetch(`${WORKER_URL}/job/${actualJobId}/update`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dives: body.dives }),

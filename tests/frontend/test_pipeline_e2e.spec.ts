@@ -10,13 +10,13 @@ import { test, expect, Page } from '@playwright/test';
 import * as path from 'path';
 
 // Configuration
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || 'http://localhost';
 const API_URL = process.env.API_URL || 'http://localhost/api';
 const PDF_FIXTURE_PATH = path.join(__dirname, '../../fixtures/ground-truth-expected.json');
 
 // Test data - use environment variable for PDF path if available
 const TEST_COMPETITION_NAME = 'E2E Test Competition';
-const TEST_PDF_PATH = process.env.TEST_PDF_PATH || path.join(__dirname, '../../../sample-competition.pdf');
+const TEST_PDF_PATH = process.env.TEST_PDF_PATH || path.join(__dirname, '../..', '20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf');
 
 /**
  * Helper to wait for API response
@@ -37,30 +37,28 @@ async function waitForApiResponse(page: Page, urlPattern: string | RegExp): Prom
 test.describe('Full Pipeline E2E Tests', () => {
   test.describe('PDF Upload and Processing', () => {
     test('should upload PDF and show processing status', async ({ page }) => {
-      // Navigate to upload page
+      // Navigate to competitions page
       await page.goto(`${BASE_URL}/competitions`);
       
-      // Click upload button to open modal/dialog
-      const uploadButton = page.getByRole('button', { name: /upload/i });
-      if (await uploadButton.isVisible()) {
-        await uploadButton.click();
-      }
+      // The page has a hidden file input for PDF upload in the drag-drop area
+      const fileInput = page.locator('input[type="file"][accept=".pdf"]');
+      await expect(fileInput).toBeAttached({ timeout: 5000 });
       
-      // Wait for file input
-      const fileInput = page.locator('input[type="file"]');
+      // Upload the PDF file by setting it on the hidden input
+      await fileInput.setInputFiles(TEST_PDF_PATH);
       
-      // Upload PDF file if it exists
-      if (await fileInput.count() > 0) {
-        try {
-          await fileInput.setInputFiles(TEST_PDF_PATH);
-          
-          // Wait for upload to complete
-          await expect(page.getByText(/processing|queued|uploaded/i)).toBeVisible({ timeout: 10000 });
-        } catch (e) {
-          // PDF might not exist in test environment - skip gracefully
-          test.skip(true, 'PDF fixture not available');
-        }
-      }
+      // After file selection, wait for the file name to appear
+      await expect(page.getByText(/Championnats|\.pdf/i)).toBeVisible({ timeout: 5000 });
+      
+      // Click the "Upload & Process" button
+      const uploadButton = page.getByRole('button', { name: /upload.*process/i });
+      await expect(uploadButton).toBeVisible({ timeout: 5000 });
+      await uploadButton.click();
+      
+      // Wait for processing indicators
+      await expect(
+        page.getByText(/uploading|processing OCR|dives extracted|completed/i)
+      ).toBeVisible({ timeout: 60000 });
     });
 
     test('should poll for PDF processing status', async ({ page }) => {

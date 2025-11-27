@@ -453,14 +453,20 @@ interface ExtractionError {
 
 ---
 
-## 8. Key Type Alignments Required
+## 8. Field Naming Convention (Standardized)
 
-| Source | Field Name | Target | Field Name | Notes |
-|--------|------------|--------|------------|-------|
-| ExtractedDive | `judge_scores` | ProcessedRow | `judgeScores` | Python to TS naming |
-| ProcessedRow | `judgeScores` | Dive Entity | `judgesScores` | Extra 's' in entity |
-| Dive Entity | `judgesScores` | DiveResult | `judgeScores` | No 's' in API response |
-| DiveResult | - | RoundDive | `athleteName` | RoundDive has extra fields |
+**Convention**: Use `judgeScores` (camelCase) consistently across ALL layers.
+
+| Layer | Field Name | Format | Notes |
+|-------|------------|--------|-------|
+| Worker (Python) | `judge_scores` | snake_case | Python convention for internal dataclass |
+| Backend DTO | `judgeScores` | camelCase | TypeScript convention |
+| Dive Entity | `judgeScores` | camelCase | DB column: `judge_scores` |
+| API Response | `judgeScores` | camelCase | Frontend expects this |
+| Frontend Types | `judgeScores` | camelCase | TypeScript convention |
+
+**Note**: Python worker uses `judge_scores` internally but the JSON output to backend
+uses camelCase `judgeScores` for cross-layer compatibility.
 
 ---
 

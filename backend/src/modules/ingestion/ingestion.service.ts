@@ -374,7 +374,7 @@ export class IngestionService {
       position,
       height: heightValue,
       difficulty: row.difficulty,
-      judgesScores: row.judgeScores,
+      judgeScores: row.judgeScores,
       finalScore: row.finalScore,
       rank: row.rank,
       roundNumber: row.roundNumber,
@@ -747,7 +747,7 @@ export class IngestionService {
               athleteCountry: d.athlete?.country,
               diveCode: d.diveCode,
               difficulty: Number(d.difficulty),
-              judgeScores: d.judgesScores,
+              judgeScores: d.judgeScores,
               finalScore: Number(d.finalScore),
               rank: d.rank,
               eventName: d.eventName,
@@ -768,7 +768,7 @@ export class IngestionService {
             roundNumber: d.roundNumber,
             diveCode: d.diveCode,
             difficulty: Number(d.difficulty),
-            judgeScores: d.judgesScores,
+            judgeScores: d.judgeScores,
             finalScore: Number(d.finalScore),
             rank: d.rank,
             eventName: d.eventName,
@@ -898,7 +898,7 @@ export class IngestionService {
     }
     
     if (updates.judgeScores !== undefined) {
-      dive.judgesScores = updates.judgeScores;
+      dive.judgeScores = updates.judgeScores;
     }
     
     if (updates.difficulty !== undefined) {
