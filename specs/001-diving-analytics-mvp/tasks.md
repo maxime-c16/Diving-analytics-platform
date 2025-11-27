@@ -23,11 +23,11 @@
 
 **Purpose**: Test infrastructure and ground truth data setup
 
-- [ ] T001 Create test directory structure at `tests/fixtures/`, `tests/worker/`, `tests/backend/`, `tests/frontend/`, `tests/utils/`
-- [ ] T002 [P] Extract OCR baseline from ground truth PDF to `tests/fixtures/ocr-output-baseline.json`
-- [ ] T003 [P] Create manually-verified ground truth fixture at `tests/fixtures/ground-truth-expected.json` (verification: compare 3 random athletes' dives against PDF visually, document in fixture metadata)
-- [ ] T004 [P] Install pytest dependencies for worker tests (`pytest`, `pytest-asyncio`, `pytest-cov`) in `worker/requirements.txt`
-- [ ] T005 [P] Configure Jest for backend E2E tests in `backend/package.json`
+- [X] T001 Create test directory structure at `tests/fixtures/`, `tests/worker/`, `tests/backend/`, `tests/frontend/`, `tests/utils/`
+- [X] T002 [P] Extract OCR baseline from ground truth PDF to `tests/fixtures/ocr-output-baseline.json`
+- [X] T003 [P] Create manually-verified ground truth fixture at `tests/fixtures/ground-truth-expected.json` (verification: compare 3 random athletes' dives against PDF visually, document in fixture metadata)
+- [X] T004 [P] Install pytest dependencies for worker tests (`pytest`, `pytest-asyncio`, `pytest-cov`) in `worker/requirements.txt`
+- [X] T005 [P] Configure Jest for backend E2E tests in `backend/package.json`
 
 ---
 
@@ -37,11 +37,11 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Create validation utilities module at `worker/validation.py` with functions: `validate_dive_code()`, `validate_judge_score()`, `validate_difficulty()`
-- [ ] T007 [P] Create OCR error correction module at `worker/ocr_corrections.py` with `EXTENDED_OCR_CORRECTIONS` dict (4→A, 8→B, 0→D mappings) and `correct_dive_code()` function
-- [ ] T008 [P] Create shared test utilities at `tests/utils/comparison.py` with functions: `compare_dives()`, `compare_athlete_results()` using tolerance values from spec.md
-- [ ] T009 [P] Create fixture loader at `tests/utils/fixtures.py` to load ground truth JSON with validation
-- [ ] T010 Add confidence scoring interface to ExtractionResult in `worker/worker.py` (field: `confidence: float` 0.0-1.0)
+- [X] T006 Create validation utilities module at `worker/validation.py` with functions: `validate_dive_code()`, `validate_judge_score()`, `validate_difficulty()`
+- [X] T007 [P] Create OCR error correction module at `worker/ocr_corrections.py` with `EXTENDED_OCR_CORRECTIONS` dict (4→A, 8→B, 0→D mappings) and `correct_dive_code()` function
+- [X] T008 [P] Create shared test utilities at `tests/utils/comparison.py` with functions: `compare_dives()`, `compare_athlete_results()` using tolerance values from spec.md
+- [X] T009 [P] Create fixture loader at `tests/utils/fixtures.py` to load ground truth JSON with validation
+- [X] T010 Add confidence scoring interface to ExtractionResult in `worker/worker.py` (field: `confidence: float` 0.0-1.0)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -55,15 +55,15 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Update `worker/worker.py` to import corrections from `ocr_corrections.py` module and replace inline `OCR_ERROR_CORRECTIONS` dict
-- [ ] T012 [US1] Extend `_correct_dive_code_ocr()` in `worker/worker.py` to handle edge cases: 3-digit codes with OCR'd suffix (e.g., 1018→1018 should become 101B), codes with trailing artifacts (101C_→101C)
-- [ ] T013 [P] [US1] Add French decimal parser function in `worker/worker.py` to handle `6,5` → `6.5` format consistently
-- [ ] T014 [P] [US1] Add dive code validation regex in `worker/worker.py` matching `^[1-6]\d{2,3}[A-D]$`
-- [ ] T015 [US1] Update `_parse_dive_row_ffn()` in `worker/worker.py` to use extended OCR corrections
-- [ ] T016 [US1] Add judge score validation (0-10, 0.5 increments) in `worker/worker.py` `_extract_judge_scores()`
-- [ ] T017 [US1] Add difficulty validation (1.0-4.5 range) in `worker/worker.py` `_parse_dive_row_ffn()`
-- [ ] T018 [US1] Implement confidence scoring logic in `worker/worker.py` based on validation pass rate
-- [ ] T019 [US1] Add debug logging for OCR corrections applied in `worker/worker.py`
+- [X] T011 [US1] Update `worker/worker.py` to import corrections from `ocr_corrections.py` module and replace inline `OCR_ERROR_CORRECTIONS` dict
+- [X] T012 [US1] Extend `_correct_dive_code_ocr()` in `worker/worker.py` to handle edge cases: 3-digit codes with OCR'd suffix (e.g., 1018→1018 should become 101B), codes with trailing artifacts (101C_→101C)
+- [X] T013 [P] [US1] Add French decimal parser function in `worker/worker.py` to handle `6,5` → `6.5` format consistently
+- [X] T014 [P] [US1] Add dive code validation regex in `worker/worker.py` matching `^[1-6]\d{2,3}[A-D]$`
+- [X] T015 [US1] Update `_parse_dive_row_ffn()` in `worker/worker.py` to use extended OCR corrections
+- [X] T016 [US1] Add judge score validation (0-10, 0.5 increments) in `worker/worker.py` `_extract_judge_scores()`
+- [X] T017 [US1] Add difficulty validation (1.0-4.5 range) in `worker/worker.py` `_parse_dive_row_ffn()`
+- [X] T018 [US1] Implement confidence scoring logic in `worker/worker.py` based on validation pass rate
+- [X] T019 [US1] Add debug logging for OCR corrections applied in `worker/worker.py`
 
 **Checkpoint**: User Story 1 complete - dive score extraction should be accurate
 
@@ -77,13 +77,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Fix DiveRecorder athlete line regex in `worker/worker.py` `_parse_athlete_line()` to handle `Firstname LASTNAME (year) -- Club` format
-- [ ] T021 [US2] Add round number tracking per athlete in `worker/worker.py` to increment correctly across pages
-- [ ] T022 [P] [US2] Add event detection regex in `worker/worker.py` for patterns like `Elite - Dames - 3m`
-- [ ] T023 [US2] Create new `_associate_dives_with_athletes()` method in `worker/worker.py` to link extracted dives to athletes based on document position and round tracking
-- [ ] T024 [US2] Add HV (Haut Vol) event height parsing in `worker/worker.py` to extract per-dive heights (5m, 7.5m, 10m)
-- [ ] T025 [US2] Fix athlete name normalization in `worker/worker.py` to handle French accents (é, è, ô)
-- [ ] T026 [US2] Add event grouping to ExtractionResult in `worker/worker.py` to separate multiple events in one PDF
+- [X] T020 [US2] Fix DiveRecorder athlete line regex in `worker/worker.py` `_parse_athlete_line()` to handle `Firstname LASTNAME (year) -- Club` format
+- [X] T021 [US2] Add round number tracking per athlete in `worker/worker.py` to increment correctly across pages
+- [X] T022 [P] [US2] Add event detection regex in `worker/worker.py` for patterns like `Elite - Dames - 3m`
+- [X] T023 [US2] Create new `_associate_dives_with_athletes()` method in `worker/worker.py` to link extracted dives to athletes based on document position and round tracking
+- [X] T024 [US2] Add HV (Haut Vol) event height parsing in `worker/worker.py` to extract per-dive heights (5m, 7.5m, 10m)
+- [X] T025 [US2] Fix athlete name normalization in `worker/worker.py` to handle French accents (é, è, ô)
+- [X] T026 [US2] Add event grouping to ExtractionResult in `worker/worker.py` to separate multiple events in one PDF
 
 **Checkpoint**: User Story 2 complete - athlete-dive associations should be correct
 
@@ -97,14 +97,14 @@
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Fix array mutation bug: change `.sort()` to `[...array].sort()` in `frontend/pages/competitions/[id].tsx` line 416
-- [ ] T028 [US3] Add null checks with fallbacks (`?? "—"`) for all dive properties in `frontend/pages/competitions/[id].tsx` lines 417-422
-- [ ] T029 [US3] Replace `idx + 1` with `dive.rank ?? idx + 1` for rank display in `frontend/pages/competitions/[id].tsx` line 418
-- [ ] T030 [P] [US3] Replace flex layout with table layout in dive breakdown section in `frontend/pages/competitions/[id].tsx` lines 369-380
-- [ ] T031 [P] [US3] Add fixed column widths (w-12, w-20, w-16) to table cells in `frontend/pages/competitions/[id].tsx`
-- [ ] T032 [US3] Update `DiveResult` type in `frontend/lib/api.ts` to include `athleteName` and `athleteCountry` optional fields
-- [ ] T033 [US3] Add loading skeleton for competition data in `frontend/pages/competitions/[id].tsx`
-- [ ] T034 [US3] Add error boundary for data rendering failures in `frontend/pages/competitions/[id].tsx`
+- [X] T027 [US3] Fix array mutation bug: change `.sort()` to `[...array].sort()` in `frontend/pages/competitions/[id].tsx` line 416
+- [X] T028 [US3] Add null checks with fallbacks (`?? "—"`) for all dive properties in `frontend/pages/competitions/[id].tsx` lines 417-422
+- [X] T029 [US3] Replace `idx + 1` with `dive.rank ?? idx + 1` for rank display in `frontend/pages/competitions/[id].tsx` line 418
+- [X] T030 [P] [US3] Replace flex layout with table layout in dive breakdown section in `frontend/pages/competitions/[id].tsx` lines 369-380
+- [X] T031 [P] [US3] Add fixed column widths (w-12, w-20, w-16) to table cells in `frontend/pages/competitions/[id].tsx`
+- [X] T032 [US3] Update `DiveResult` type in `frontend/lib/api.ts` to include `athleteName` and `athleteCountry` optional fields
+- [X] T033 [US3] Add loading skeleton for competition data in `frontend/pages/competitions/[id].tsx`
+- [X] T034 [US3] Add error boundary for data rendering failures in `frontend/pages/competitions/[id].tsx`
 
 **Checkpoint**: User Story 3 complete - UI should display aligned data
 

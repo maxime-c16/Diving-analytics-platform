@@ -364,21 +364,28 @@ export default function CompetitionDetailPage() {
                               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                                 <div className="p-4 bg-muted/30 rounded-b-lg border border-t-0 space-y-2">
                                   <p className="text-sm font-medium text-muted-foreground mb-3">Dive Breakdown</p>
-                                  <div className="grid gap-2">
-                                    {athlete.dives.map((dive) => (
-                                      <div key={dive.id} className="flex items-center justify-between p-3 bg-background rounded-md text-sm">
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-muted-foreground w-8">R{dive.roundNumber}</span>
-                                          <span className="font-mono font-medium">{dive.diveCode}</span>
-                                          <span className="text-muted-foreground">DD: {dive.difficulty}</span>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                          {dive.judgeScores && <span className="text-xs text-muted-foreground">[{dive.judgeScores.join(", ")}]</span>}
-                                          <span className="font-bold w-16 text-right">{dive.finalScore.toFixed(2)}</span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="text-left text-muted-foreground text-xs">
+                                        <th className="w-12 p-1">Round</th>
+                                        <th className="w-20 p-1">Code</th>
+                                        <th className="w-16 p-1">DD</th>
+                                        <th className="p-1">Judges</th>
+                                        <th className="w-20 text-right p-1">Score</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {athlete.dives.map((dive) => (
+                                        <tr key={dive.id} className="bg-background rounded-md">
+                                          <td className="w-12 p-2 text-muted-foreground">R{dive.roundNumber ?? "?"}</td>
+                                          <td className="w-20 p-2 font-mono font-medium">{dive.diveCode ?? "—"}</td>
+                                          <td className="w-16 p-2 text-muted-foreground">{dive.difficulty ?? "—"}</td>
+                                          <td className="p-2 text-xs text-muted-foreground">{dive.judgeScores ? `[${dive.judgeScores.join(", ")}]` : "—"}</td>
+                                          <td className="w-20 p-2 text-right font-bold">{dive.finalScore?.toFixed(2) ?? "—"}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
                                 </div>
                               </motion.div>
                             )}
@@ -413,14 +420,14 @@ export default function CompetitionDetailPage() {
                         <table className="w-full text-sm">
                           <thead><tr className="border-b"><th className="text-left p-2">Rank</th><th className="text-left p-2">Athlete</th><th className="text-left p-2">Dive</th><th className="text-center p-2">DD</th><th className="text-center p-2">Judges</th><th className="text-right p-2">Score</th></tr></thead>
                           <tbody>
-                            {round.dives.sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0)).map((dive, idx) => (
+                            {[...round.dives].sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0)).map((dive, idx) => (
                               <tr key={dive.id} className="border-b last:border-0 hover:bg-muted/50">
-                                <td className="p-2 font-medium">{idx + 1}</td>
-                                <td className="p-2"><span className="font-medium">{dive.athleteName}</span>{dive.athleteCountry && <span className="text-muted-foreground ml-2">({dive.athleteCountry})</span>}</td>
-                                <td className="p-2 font-mono">{dive.diveCode}</td>
-                                <td className="p-2 text-center">{dive.difficulty}</td>
-                                <td className="p-2 text-center text-xs text-muted-foreground">{dive.judgeScores?.join(", ") || "—"}</td>
-                                <td className="p-2 text-right font-bold">{dive.finalScore.toFixed(2)}</td>
+                                <td className="p-2 font-medium w-12">{dive.rank ?? idx + 1}</td>
+                                <td className="p-2 w-48"><span className="font-medium">{dive.athleteName ?? "Unknown"}</span>{dive.athleteCountry && <span className="text-muted-foreground ml-2">({dive.athleteCountry})</span>}</td>
+                                <td className="p-2 font-mono w-20">{dive.diveCode ?? "—"}</td>
+                                <td className="p-2 text-center w-16">{dive.difficulty ?? "—"}</td>
+                                <td className="p-2 text-center text-xs text-muted-foreground">{dive.judgeScores?.join(", ") ?? "—"}</td>
+                                <td className="p-2 text-right font-bold w-20">{dive.finalScore?.toFixed(2) ?? "—"}</td>
                               </tr>
                             ))}
                           </tbody>

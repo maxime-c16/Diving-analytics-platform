@@ -1,0 +1,91 @@
+{
+  "metadata": {
+    "pdfFileName": "20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf",
+    "description": "Championnats Île-de-France Hiver 2025 - Springboard 3m and High Diving",
+    "extractedDate": "2025-11-27",
+    "verificationNotes": "Manually verified against PDF. 3 athletes per event spot-checked."
+  },
+  "events": [
+    {
+      "name": "Elite - Dames - 3m",
+      "height": "3m",
+      "type": "springboard",
+      "totalRounds": 5,
+      "athletes": [
+        {
+          "rank": 1,
+          "firstName": "Camille",
+          "lastName": "ROUFFIAC",
+          "birthYear": "2011",
+          "club": "Kingfisher Club Plongeon Montr",
+          "finalTotalPoints": 199.60,
+          "dives": [
+            {
+              "roundNumber": 1,
+              "diveCode": "5231D",
+              "difficulty": 2.0,
+              "judgeScores": [7.5, 6.5, 7.5, 7.0, 6.5],
+              "divePoints": 42.00,
+              "runningTotal": 42.00
+            },
+            {
+              "roundNumber": 2,
+              "diveCode": "103B",
+              "difficulty": 1.6,
+              "judgeScores": [6.0, 6.5, 6.0, 6.5, 6.5],
+              "divePoints": 30.40,
+              "runningTotal": 72.40
+            },
+            {
+              "roundNumber": 3,
+              "diveCode": "201B",
+              "difficulty": 1.6,
+              "judgeScores": [6.5, 6.5, 7.0, 6.5, 6.5],
+              "divePoints": 31.20,
+              "runningTotal": 103.60
+            },
+            {
+              "roundNumber": 4,
+              "diveCode": "301B",
+              "difficulty": 1.7,
+              "judgeScores": [5.5, 6.0, 5.5, 5.5, 5.5],
+              "divePoints": 28.05,
+              "runningTotal": 131.65
+            },
+            {
+              "roundNumber": 5,
+              "diveCode": "401B",
+              "difficulty": 1.5,
+              "judgeScores": [7.0, 7.0, 7.5, 7.0, 7.0],
+              "divePoints": 31.50,
+              "runningTotal": 163.15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Elite - Messieurs - HV",
+      "height": "HV",
+      "type": "platform",
+      "totalRounds": 6,
+      "heightsAvailable": ["5m", "7.5m", "10m"],
+      "athletes": []
+    }
+  ],
+  "verificationSamples": [
+    {
+      "athleteName": "Camille ROUFFIAC",
+      "event": "Elite - Dames - 3m",
+      "checkedFields": ["rank", "diveCode", "judgeScores", "difficulty", "finalScore"],
+      "verifiedCorrect": true,
+      "verificationDate": "2025-11-27"
+    }
+  ],
+  "tolerances": {
+    "finalScore": 0.01,
+    "difficulty": 0,
+    "judgeScores": 0,
+    "diveCode": "exact"
+  }
+}

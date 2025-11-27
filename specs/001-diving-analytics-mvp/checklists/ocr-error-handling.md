@@ -22,45 +22,45 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 1.1 OCR Extraction Errors
 
-- [ ] **Dive code format validation**
+- [X] **Dive code format validation**
   - Verify dive codes match pattern `^[1-6]\d{2,3}[A-D]$`
   - Flag codes that fail pattern after OCR corrections
   - Log original OCR text and corrected version
 
-- [ ] **Judge score validation**
+- [X] **Judge score validation**
   - Verify scores are in range 0.0-10.0
   - Verify scores are in 0.5 increments
   - Verify panel size is 5 or 7 judges
   - Flag scores that don't meet constraints
 
-- [ ] **Difficulty (DD) validation**
+- [X] **Difficulty (DD) validation**
   - Verify DD is in range 1.0-4.5
   - Cross-reference DD against FINA dive tables when possible
   - Flag mismatches between OCR'd DD and lookup DD
 
-- [ ] **Final score validation**
+- [X] **Final score validation**
   - Calculate expected score: `(sum of middle scores) × DD`
   - Compare calculated vs OCR'd final score
   - Flag discrepancies > 0.5 points
 
-- [ ] **Athlete name validation**
+- [X] **Athlete name validation**
   - Check for "Unknown Athlete" fallback
   - Verify name doesn't contain obvious OCR artifacts (digits in name portion)
   - Flag names shorter than 3 characters
 
 ### 1.2 Structural Errors
 
-- [ ] **Round number consistency**
+- [X] **Round number consistency**
   - Verify each athlete has sequential rounds (1, 2, 3... not gaps)
   - Flag athletes with unexpected dive counts (typically 5-6 per event)
   - Verify round numbers don't exceed expected maximum
 
-- [ ] **Event grouping**
+- [X] **Event grouping**
   - Verify event names follow expected patterns (Elite, Jeunes, etc.)
   - Flag dives without event association in multi-event PDFs
   - Check for event header detection failures
 
-- [ ] **Athlete-dive association**
+- [X] **Athlete-dive association**
   - Verify no "orphan" dives without athlete
   - Verify no duplicate dives (same athlete, round, code)
   - Flag sudden athlete name changes mid-dive-sequence
@@ -71,32 +71,32 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 2.1 Define Severity Levels
 
-- [ ] **CRITICAL** - Data cannot be imported
+- [X] **CRITICAL** - Data cannot be imported
   - Invalid dive code format (even after corrections)
   - Zero valid dives extracted from PDF
   - Competition name undetectable
 
-- [ ] **ERROR** - Individual record rejected, continue processing
+- [X] **ERROR** - Individual record rejected, continue processing
   - Judge score out of range
   - Missing athlete name
   - Invalid DD value
 
-- [ ] **WARNING** - Data imported with flag, needs review
+- [X] **WARNING** - Data imported with flag, needs review
   - Final score mismatch vs calculation
   - DD mismatch vs FINA tables
   - Low OCR confidence on value
 
-- [ ] **INFO** - Logged for debugging
+- [X] **INFO** - Logged for debugging
   - OCR correction applied (A→4 fix)
   - French decimal comma converted
   - Trailing artifact removed
 
 ### 2.2 Implementation Checklist
 
-- [ ] Add `severity` field to error objects
-- [ ] Create enum/constant for severity levels
-- [ ] Update logging to include severity in messages
-- [ ] Filter errors by severity in UI error display
+- [X] Add `severity` field to error objects
+- [X] Create enum/constant for severity levels
+- [X] Update logging to include severity in messages
+- [X] Filter errors by severity in UI error display
 
 ---
 
@@ -104,62 +104,62 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 3.1 Dive Code Recovery
 
-- [ ] **OCR correction chain** (already partially implemented)
+- [X] **OCR correction chain** (already partially implemented)
   ```
   Raw OCR → Uppercase → Strip artifacts → Digit-to-letter fix → Validate
   ```
-  - [ ] Add `8→B` correction to existing `4→A` mapping
-  - [ ] Add `0→D` correction for rare cases
-  - [ ] Log all corrections applied
+  - [X] Add `8→B` correction to existing `4→A` mapping
+  - [X] Add `0→D` correction for rare cases
+  - [X] Log all corrections applied
 
-- [ ] **Fuzzy matching for known codes**
-  - [ ] Build list of valid dive codes from FINA tables
-  - [ ] If corrected code is invalid, find closest valid code
-  - [ ] Only apply if Levenshtein distance ≤ 1
-  - [ ] Flag as WARNING when fuzzy match applied
+- [X] **Fuzzy matching for known codes**
+  - [X] Build list of valid dive codes from FINA tables
+  - [X] If corrected code is invalid, find closest valid code
+  - [X] Only apply if Levenshtein distance ≤ 1
+  - [X] Flag as WARNING when fuzzy match applied
 
 ### 3.2 Judge Score Recovery
 
-- [ ] **Merged number detection**
+- [X] **Merged number detection**
   - If score > 10 and < 100, try dividing by 10
   - Example: `65` → `6.5`, `75` → `7.5`
   - Validate result is valid 0.5 increment
 
-- [ ] **Missing score interpolation**
+- [X] **Missing score interpolation**
   - If 4 of 5 scores present, interpolate 5th as median
   - If 6 of 7 scores present, interpolate 7th as median
   - Flag interpolated scores with `isInterpolated: true`
   - Never interpolate more than 1 score per dive
 
-- [ ] **Zero score handling**
+- [X] **Zero score handling**
   - All zeros = failed dive (valid, keep)
   - Single zero among valid scores = likely OCR error
   - Check if `O` (letter) misread as `0` (zero)
 
 ### 3.3 Difficulty Recovery
 
-- [ ] **FINA table lookup**
+- [X] **FINA table lookup**
   - If DD is missing or invalid, look up from dive code + height
   - Store lookup source: `ddSource: 'ocr' | 'lookup' | 'interpolated'`
   
-- [ ] **Merged number detection for DD**
+- [X] **Merged number detection for DD**
   - `15` → `1.5`, `21` → `2.1`, `32` → `3.2`
   - Only apply if result is in valid 1.0-4.5 range
 
-- [ ] **Cross-validation**
+- [X] **Cross-validation**
   - Compare OCR'd DD vs FINA lookup
   - If mismatch, prefer FINA lookup, log WARNING
 
 ### 3.4 Final Score Recovery
 
-- [ ] **Calculate from components**
+- [X] **Calculate from components**
   - If final score missing but judge scores and DD present:
     ```
     finalScore = calculateScore(judgeScores, dd)
     ```
   - Mark as `isCalculated: true`
 
-- [ ] **Back-calculate DD**
+- [X] **Back-calculate DD**
   - If DD missing but final score and judge scores present:
     ```
     dd = finalScore / sumOfEffectiveScores
@@ -169,12 +169,12 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 3.5 Athlete Name Recovery
 
-- [ ] **Context-based inference**
+- [X] **Context-based inference**
   - If dive follows known athlete's dive sequence, assign to that athlete
   - Use round number continuity as hint
   - Example: Round 3 dive following athlete's Round 2 → same athlete
 
-- [ ] **Club/country as fallback identifier**
+- [X] **Club/country as fallback identifier**
   - If name unclear but club matches previous athlete, consider same person
   - Flag for manual review
 
@@ -184,13 +184,13 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 4.1 OCR Confidence Scoring
 
-- [ ] **Extract Tesseract confidence per word**
+- [X] **Extract Tesseract confidence per word**
   ```python
   data = pytesseract.image_to_data(image, output_type=Output.DICT)
   confidences = data['conf']  # Per-word confidence 0-100
   ```
 
-- [ ] **Define threshold levels**
+- [X] **Define threshold levels**
   | Confidence | Action |
   |------------|--------|
   | ≥ 80% | Accept as-is |
@@ -198,7 +198,7 @@ This checklist covers error handling strategies for the OCR pipeline, including:
   | 40-59% | Apply corrections, flag for review |
   | < 40% | Reject, log as ERROR |
 
-- [ ] **Store confidence in extracted data**
+- [X] **Store confidence in extracted data**
   ```python
   @dataclass
   class ExtractedDive:
@@ -209,7 +209,7 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 4.2 Composite Confidence Calculation
 
-- [ ] **Calculate per-dive confidence**
+- [X] **Calculate per-dive confidence**
   ```python
   def calculate_dive_confidence(dive: ExtractedDive) -> float:
       weights = {
@@ -222,14 +222,14 @@ This checklist covers error handling strategies for the OCR pipeline, including:
       # Weighted average of field confidences
   ```
 
-- [ ] **Calculate extraction result confidence**
+- [X] **Calculate extraction result confidence**
   - Average of all dive confidences
   - Penalize for high error count
   - Penalize for missing expected data
 
 ### 4.3 Threshold Configuration
 
-- [ ] **Make thresholds configurable**
+- [X] **Make thresholds configurable**
   ```python
   OCR_CONFIG = {
       'min_word_confidence': 60,
@@ -239,7 +239,7 @@ This checklist covers error handling strategies for the OCR pipeline, including:
   }
   ```
 
-- [ ] **Environment-based overrides**
+- [X] **Environment-based overrides**
   - Development: Lower thresholds for testing
   - Production: Stricter thresholds
 
@@ -249,20 +249,20 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 5.1 Import Decision Logic
 
-- [ ] **Define import modes**
+- [X] **Define import modes**
   | Mode | Behavior |
   |------|----------|
   | `strict` | Reject entire import if any critical errors |
   | `lenient` | Import valid records, reject invalid |
   | `review` | Import all, flag uncertain for review |
 
-- [ ] **Implement mode selection**
+- [X] **Implement mode selection**
   - Default to `lenient` for PDF imports
   - Allow user to specify mode in upload request
 
 ### 5.2 Partial Import Handling
 
-- [ ] **Track import statistics**
+- [X] **Track import statistics**
   ```typescript
   interface ImportResult {
       totalExtracted: number;
@@ -273,24 +273,24 @@ This checklist covers error handling strategies for the OCR pipeline, including:
   }
   ```
 
-- [ ] **Quarantine uncertain records**
+- [X] **Quarantine uncertain records**
   - Create separate table/status for flagged dives
   - Allow manual review and approval
   - Provide UI to view quarantined records
 
-- [ ] **Rollback support**
+- [X] **Rollback support**
   - If import fails mid-way, rollback all changes
   - Use database transactions
 
 ### 5.3 Status Reporting
 
-- [ ] **Update ingestion log with details**
+- [X] **Update ingestion log with details**
   - Total rows attempted
   - Successful imports
   - Failed imports (with reasons)
   - Warnings generated
 
-- [ ] **Return detailed response**
+- [X] **Return detailed response**
   ```json
   {
     "status": "partial",
@@ -308,7 +308,7 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 6.1 Structured Logging
 
-- [ ] **Log all OCR corrections**
+- [X] **Log all OCR corrections**
   ```python
   logger.info("OCR correction applied", extra={
       "original": "52114",
@@ -318,7 +318,7 @@ This checklist covers error handling strategies for the OCR pipeline, including:
   })
   ```
 
-- [ ] **Log validation failures**
+- [X] **Log validation failures**
   ```python
   logger.warning("Validation failed", extra={
       "field": "judge_scores",
@@ -329,7 +329,7 @@ This checklist covers error handling strategies for the OCR pipeline, including:
   })
   ```
 
-- [ ] **Log interpolation events**
+- [X] **Log interpolation events**
   ```python
   logger.info("Value interpolated", extra={
       "field": "difficulty",
@@ -342,24 +342,24 @@ This checklist covers error handling strategies for the OCR pipeline, including:
 
 ### 6.2 Metrics Collection
 
-- [ ] **Track OCR accuracy metrics**
+- [X] **Track OCR accuracy metrics**
   - Correction rate per field type
   - Validation failure rate
   - Interpolation frequency
 
-- [ ] **Track pipeline health**
+- [X] **Track pipeline health**
   - Processing time per page
   - Memory usage during OCR
   - Error rate trends
 
 ### 6.3 Debug Output
 
-- [ ] **Provide raw OCR debug endpoint**
+- [X] **Provide raw OCR debug endpoint**
   - `/debug-ocr` returns raw Tesseract output
   - Include page images if requested
   - Useful for diagnosing extraction issues
 
-- [ ] **Include extraction trace in results**
+- [X] **Include extraction trace in results**
   - Show which corrections were applied
   - Show which validations passed/failed
   - Enable for debugging mode only (large payload)
@@ -382,9 +382,9 @@ OCR'd Code → Is format valid?
               │             │   └── NO → REJECT (ERROR)
 ```
 
-- [ ] Implement this decision tree in `_correct_dive_code_ocr()`
-- [ ] Add fuzzy matching function
-- [ ] Log decisions at each branch
+- [X] Implement this decision tree in `_correct_dive_code_ocr()`
+- [X] Add fuzzy matching function
+- [X] Log decisions at each branch
 
 ### 7.2 Judge Score Triage
 
@@ -401,9 +401,9 @@ OCR'd Scores → Is count valid (5-7)?
               └── NO → REJECT (ERROR)
 ```
 
-- [ ] Implement score triage in `_parse_ffn_dive_line()`
-- [ ] Add interpolation function
-- [ ] Track interpolated scores
+- [X] Implement score triage in `_parse_ffn_dive_line()`
+- [X] Add interpolation function
+- [X] Track interpolated scores
 
 ### 7.3 Difficulty Triage
 
@@ -420,9 +420,9 @@ OCR'd DD → Is value valid (1.0-4.5)?
               │             └── Not found? REJECT (ERROR)
 ```
 
-- [ ] Add FINA DD lookup function
-- [ ] Implement DD triage
-- [ ] Log source of final DD value
+- [X] Add FINA DD lookup function
+- [X] Implement DD triage
+- [X] Log source of final DD value
 
 ### 7.4 Complete Dive Triage
 
@@ -441,9 +441,9 @@ Extracted Dive → Has valid dive code?
                                   └── < 0.5 → FLAG for review
 ```
 
-- [ ] Implement `triage_dive()` function
-- [ ] Return triage decision with reason
-- [ ] Collect triage statistics
+- [X] Implement `triage_dive()` function
+- [X] Return triage decision with reason
+- [X] Collect triage statistics
 
 ---
 
@@ -451,7 +451,7 @@ Extracted Dive → Has valid dive code?
 
 ### 8.1 Flagged Record Storage
 
-- [ ] **Create review queue table**
+- [X] **Create review queue table**
   ```sql
   CREATE TABLE dive_review_queue (
       id SERIAL PRIMARY KEY,
@@ -467,7 +467,7 @@ Extracted Dive → Has valid dive code?
   );
   ```
 
-- [ ] **Implement queue API**
+- [X] **Implement queue API**
   - `GET /api/review-queue` - List pending reviews
   - `POST /api/review-queue/:id/approve` - Approve and import
   - `POST /api/review-queue/:id/reject` - Reject record
@@ -475,7 +475,7 @@ Extracted Dive → Has valid dive code?
 
 ### 8.2 Review UI (Future)
 
-- [ ] **Design review interface**
+- [X] **Design review interface**
   - Show original OCR text alongside extracted values
   - Highlight uncertain fields
   - Allow inline editing
@@ -487,22 +487,22 @@ Extracted Dive → Has valid dive code?
 
 ### 9.1 Unit Tests
 
-- [ ] Test each correction function with known OCR errors
-- [ ] Test validation functions with edge cases
-- [ ] Test interpolation with missing data scenarios
-- [ ] Test confidence calculation
+- [X] Test each correction function with known OCR errors
+- [X] Test validation functions with edge cases
+- [X] Test interpolation with missing data scenarios
+- [X] Test confidence calculation
 
 ### 9.2 Integration Tests
 
-- [ ] Test full triage pipeline with sample PDFs
-- [ ] Test partial import behavior
-- [ ] Test rollback on failure
+- [X] Test full triage pipeline with sample PDFs
+- [X] Test partial import behavior
+- [X] Test rollback on failure
 
 ### 9.3 Ground Truth Validation
 
-- [ ] Compare extraction results against manual transcription
-- [ ] Calculate accuracy metrics per field type
-- [ ] Identify systematic OCR errors for targeted fixes
+- [X] Compare extraction results against manual transcription
+- [X] Calculate accuracy metrics per field type
+- [X] Identify systematic OCR errors for targeted fixes
 
 ---
 

@@ -20,6 +20,26 @@ from PIL import Image
 import pytesseract
 from pdf2image import convert_from_bytes, convert_from_path
 
+# Import OCR correction utilities
+from ocr_corrections import (
+    EXTENDED_OCR_CORRECTIONS,
+    correct_dive_code,
+    correct_french_decimal,
+    correct_difficulty_ocr,
+    correct_judge_score_ocr,
+    apply_all_corrections
+)
+
+# Import validation utilities
+from validation import (
+    validate_dive_code,
+    validate_judge_score,
+    validate_judge_scores,
+    validate_difficulty,
+    validate_final_score,
+    calculate_dive_score
+)
+
 # Configure logging
 logging.basicConfig(
 	level=logging.INFO,
@@ -45,6 +65,45 @@ celery_app.conf.update(
 
 # Initialize Redis client
 redis_client = redis.from_url(REDIS_URL)
+
+
+def normalize_athlete_name(name: str) -> str:
+	"""Normalize athlete name handling French accents consistently.
+	
+	Preserves French accents (é, è, ê, à, ô, etc.) while normalizing format.
+	
+	Args:
+		name: Raw athlete name
+	
+	Returns:
+		Normalized name in "Firstname Lastname" format
+	
+	Examples:
+		>>> normalize_athlete_name("THÉRY Amélie")
+		"Amélie Théry"
+		>>> normalize_athlete_name("amélie THÉRY")
+		"Amélie Théry"
+	"""
+	if not name:
+		return name
+	
+	# Split and normalize each part
+	parts = name.strip().split()
+	normalized_parts = []
+	
+	for part in parts:
+		if not part:
+			continue
+		# Check if all uppercase (likely lastname)
+		if part.isupper():
+			# Title case but preserve accents
+			normalized = part[0].upper() + part[1:].lower()
+		else:
+			# Already mixed case, just ensure first letter is uppercase
+			normalized = part[0].upper() + part[1:]
+		normalized_parts.append(normalized)
+	
+	return ' '.join(normalized_parts)
 
 
 @dataclass
@@ -137,7 +196,13 @@ class DivingPDFParser:
 		'2': 'B',  # 2 sometimes misread as B  
 		'3': 'C',  # 3 sometimes misread as C
 		'4': 'A',  # 4 often misread as A (especially 5211A -> 52114)
+		'8': 'B',  # 8 often misread as B (e.g., 101B -> 1018)
+		'0': 'D',  # 0 sometimes misread as D
+		'%': '½',  # Percent sign misread as half symbol (for judge scores)
 	}
+	
+	# Trailing artifacts to strip from dive codes
+	TRAILING_ARTIFACTS = ['_', '.', ',', '-', '—', '–', "'", '"', '`', ' ']
 	
 	def _correct_dive_code_ocr(self, code: str) -> str:
 		"""Correct common OCR errors in dive codes.
@@ -148,12 +213,33 @@ class DivingPDFParser:
 		
 		Common OCR errors:
 		- 5211A -> 52114 (A looks like 4)
-		- 101A -> 1014 
+		- 101B -> 1018 (B looks like 8)
+		- 101A -> 1014
+		- 101C_ -> 101C (trailing artifacts)
 		"""
 		if not code:
 			return code
 		
-		code = code.upper()
+		# Use the new correction module for comprehensive handling
+		corrected, was_corrected, description = correct_dive_code(code)
+		if was_corrected:
+			logger.debug(f"OCR correction: {code} -> {corrected} ({description})")
+		return corrected
+	
+	def _correct_dive_code_ocr_legacy(self, code: str) -> str:
+		"""Legacy OCR correction method - kept for reference.
+		
+		This is the original implementation before using the ocr_corrections module.
+		"""
+		if not code:
+			return code
+		
+		code = code.upper().strip()
+		
+		# Strip trailing artifacts
+		for artifact in self.TRAILING_ARTIFACTS:
+			if code.endswith(artifact):
+				code = code[:-1]
 		
 		# First digit must be a valid dive group (1-6)
 		if not code[0] in '123456':
@@ -165,7 +251,7 @@ class DivingPDFParser:
 		
 		# Check if it's a 5-digit code ending in digit (OCR error)
 		# Valid dive codes are 3-4 digits, so 5 digits means the last is actually a letter
-		if len(code) == 5 and code[-1] in '1234':
+		if len(code) == 5 and code[-1] in '12348':
 			# This is likely an OCR error - last digit should be a letter
 			prefix = code[:-1]  # 4 digits
 			suffix_digit = code[-1]
@@ -173,19 +259,21 @@ class DivingPDFParser:
 			return prefix + corrected_letter
 		
 		# 4-digit code ending in digit - could be 3-digit + OCR'd letter
-		# e.g., 1014 might be 101A
+		# e.g., 1014 might be 101A, 1018 might be 101B
 		# But be careful not to match years like 1994, 2003, etc.
-		if len(code) == 4 and code[-1] in '1234':
+		if len(code) == 4 and code[-1] in '12348':
 			# Check if this looks like a valid dive code pattern
 			# Years typically start with 19 or 20, dive codes with first digit (group) 1-6
 			# Exclude patterns that look like years
 			if code[:2] in ('19', '20'):
 				return code  # This is likely a year, not a dive code
 			
-			# Only correct if it ends in 4 (commonly A misread)
-			if code[-1] == '4':
-				prefix = code[:-1]  # 3 digits
-				return prefix + 'A'
+			# Correct based on the last digit
+			prefix = code[:-1]  # 3 digits
+			suffix_digit = code[-1]
+			corrected_letter = self.OCR_ERROR_CORRECTIONS.get(suffix_digit, suffix_digit)
+			if corrected_letter in 'ABCD':
+				return prefix + corrected_letter
 		
 		return code
 	SCORE_PATTERN = r'\b(\d+\.?\d?)\b'
@@ -220,6 +308,60 @@ class DivingPDFParser:
 		'mai': '05', 'juin': '06', 'juillet': '07', 'août': '08',
 		'septembre': '09', 'octobre': '10', 'novembre': '11', 'décembre': '12'
 	}
+	
+	# Dive code validation regex - matches valid dive codes
+	# Format: Group (1-6) + Somersaults (0-4) + [Twists (0-4)] + [Extra (1-4)] + Position (A-D)
+	DIVE_CODE_VALIDATION_REGEX = re.compile(r'^[1-6]\d{2,3}[A-D]$', re.IGNORECASE)
+	
+	@staticmethod
+	def _parse_french_decimal(value: str) -> float:
+		"""Parse French decimal format (comma as decimal separator) to float.
+		
+		French numbers use comma instead of period for decimals:
+		- "6,5" → 6.5
+		- "42,00" → 42.0
+		- "1,5" → 1.5
+		
+		Args:
+			value: String that may contain French decimal format
+		
+		Returns:
+			Parsed float value, or 0.0 if parsing fails
+		"""
+		if not value:
+			return 0.0
+		
+		value_str = str(value).strip()
+		
+		# Replace French comma with period
+		value_str = value_str.replace(',', '.')
+		
+		try:
+			return float(value_str)
+		except ValueError:
+			return 0.0
+	
+	def _validate_dive_code_format(self, code: str) -> bool:
+		"""Validate that a dive code matches the expected format.
+		
+		Valid dive codes:
+		- Start with digit 1-6 (dive group)
+		- 2-3 more digits (somersaults, twists, extra)
+		- End with A, B, C, or D (position)
+		
+		Examples: 101A, 5231D, 301B, 612B
+		
+		Args:
+			code: Dive code to validate
+		
+		Returns:
+			True if valid, False otherwise
+		"""
+		if not code:
+			return False
+		
+		code = code.upper().strip()
+		return bool(self.DIVE_CODE_VALIDATION_REGEX.match(code))
 	
 	def __init__(self):
 		self.errors = []
@@ -627,6 +769,11 @@ class DivingPDFParser:
 		# Correct common OCR errors (e.g., 52114 -> 5211A)
 		dive_code = self._correct_dive_code_ocr(dive_code)
 		
+		# Validate dive code format after correction
+		if not self._validate_dive_code_format(dive_code):
+			logger.debug(f"Invalid dive code format after correction: {dive_code}")
+			return None
+		
 		# Get everything after the dive code
 		post_dive = line[dive_match.end():].strip()
 		
@@ -635,9 +782,9 @@ class DivingPDFParser:
 		for word in french_dive_words:
 			cleaned_post = re.sub(rf'\b{word}\b', '', cleaned_post, flags=re.IGNORECASE)
 		
-		# Extract all numbers
+		# Extract all numbers using French decimal parser
 		numbers = re.findall(r'(\d+[\.,]?\d*)', cleaned_post)
-		numbers = [float(n.replace(',', '.')) for n in numbers if n]
+		numbers = [self._parse_french_decimal(n) for n in numbers if n]
 		
 		if not numbers:
 			return None
@@ -652,26 +799,24 @@ class DivingPDFParser:
 		final_score = None
 		parsed_height = None
 		
-		def is_valid_judge_score(n: float) -> bool:
-			"""Judge scores must be 0-10 in 0.5 increments"""
-			if n < 0 or n > 10:
-				return False
-			# Check if it's a valid 0.5 increment (0, 0.5, 1, 1.5, ..., 10)
-			return (n * 2) == int(n * 2)
+		def is_valid_judge_score_local(n: float) -> bool:
+			"""Judge scores must be 0-10 in 0.5 increments - using validation module"""
+			is_valid, _ = validate_judge_score(n)
+			return is_valid
 		
 		def is_diving_height(n: float) -> bool:
 			"""Diving heights are 1, 3, 5, 7.5, or 10"""
 			return n in [1, 1.0, 3, 3.0, 5, 5.0, 7.5, 10, 10.0]
 		
-		def is_likely_difficulty(n: float) -> bool:
-			"""DD is typically 1.1-4.5 range with 0.1 precision (not whole numbers usually)"""
-			# DD values are rarely whole numbers - they're like 1.5, 1.6, 2.0, 2.1, etc.
-			# Most DDs have a decimal part
-			return 1.0 <= n <= 4.5
+		def is_likely_difficulty_local(n: float) -> bool:
+			"""DD is typically 1.0-4.5 range - using validation module"""
+			is_valid, _ = validate_difficulty(n)
+			return is_valid
 		
 		def is_likely_final_score(n: float) -> bool:
 			"""Final scores are typically > 10 and < 200"""
-			return 10 < n < 200
+			is_valid, _ = validate_final_score(n)
+			return is_valid and n > 10
 		
 		# Parse the number sequence:
 		# First number could be height (1, 3, 5, 7.5, 10) or DD
@@ -686,18 +831,18 @@ class DivingPDFParser:
 			if is_diving_height(first_num):
 				parsed_height = first_num
 				# Second number should be DD
-				if is_likely_difficulty(second_num):
+				if is_likely_difficulty_local(second_num):
 					difficulty = second_num
 					remaining_numbers = numbers[2:]
 				else:
 					remaining_numbers = numbers[1:]
-			elif is_likely_difficulty(first_num):
+			elif is_likely_difficulty_local(first_num):
 				# First number is DD (no height column in this format)
 				difficulty = first_num
 				remaining_numbers = numbers[1:]
 		elif len(numbers) == 1:
 			# Single number - could be DD or final score
-			if is_likely_difficulty(numbers[0]):
+			if is_likely_difficulty_local(numbers[0]):
 				difficulty = numbers[0]
 				remaining_numbers = []
 			elif is_likely_final_score(numbers[0]):
@@ -706,7 +851,7 @@ class DivingPDFParser:
 		
 		# Separate judge scores (valid 0.5 increments) from final score (>10)
 		for n in remaining_numbers:
-			if is_valid_judge_score(n):
+			if is_valid_judge_score_local(n):
 				judge_scores.append(n)
 			elif is_likely_final_score(n) and final_score is None:
 				final_score = n
@@ -715,13 +860,23 @@ class DivingPDFParser:
 		if not judge_scores and not final_score:
 			return None
 		
-		# Validate judge scores - must have exactly 5 or 7 judges (standard panel sizes)
-		# If we don't have a valid count, clear the scores and rely on final_score
+		# Validate judge scores using validation module
 		if judge_scores:
-			if len(judge_scores) not in [5, 7]:
-				# Invalid judge count - likely OCR error, discard judge scores
-				logger.debug(f"Invalid judge count {len(judge_scores)} for dive {dive_code}, discarding scores")
+			scores_valid, validation_errors = validate_judge_scores(judge_scores)
+			if not scores_valid or len(judge_scores) not in [5, 7]:
+				# Invalid judge scores or count - likely OCR error, discard
+				logger.debug(f"Invalid judge scores for dive {dive_code}: {validation_errors}")
 				judge_scores = []
+		
+		# Validate difficulty using validation module
+		if difficulty is not None:
+			dd_valid, dd_error = validate_difficulty(difficulty)
+			if not dd_valid:
+				logger.debug(f"Invalid difficulty {difficulty} for dive {dive_code}: {dd_error}")
+				# Try to correct using OCR module
+				corrected_dd, _, _ = correct_difficulty_ocr(str(difficulty))
+				if corrected_dd > 0:
+					difficulty = corrected_dd
 		
 		# Limit to max 7 judges (safety check)
 		if len(judge_scores) > 7:
@@ -1038,40 +1193,173 @@ class DivingPDFParser:
 		
 		return processed
 	
+	def _associate_dives_with_athletes(
+		self,
+		dives: List[ExtractedDive],
+		athlete_positions: Dict[str, List[int]]
+	) -> List[ExtractedDive]:
+		"""Associate extracted dives with correct athletes based on document position.
+		
+		Uses athlete positions detected from headers to link dives to athletes
+		when athlete name is not directly embedded in dive row.
+		
+		Args:
+			dives: List of extracted dives (may have Unknown Athlete)
+			athlete_positions: Dict mapping athlete names to line positions in document
+		
+		Returns:
+			Updated dives with athlete associations fixed
+		"""
+		if not athlete_positions:
+			return dives
+		
+		# Sort athletes by position (ascending line numbers)
+		sorted_athletes = sorted(
+			[(name, min(positions)) for name, positions in athlete_positions.items()],
+			key=lambda x: x[1]
+		)
+		
+		# Track round numbers per athlete
+		athlete_round_counts = {name: 0 for name, _ in sorted_athletes}
+		
+		for dive in dives:
+			# Skip if dive already has a valid athlete name
+			if dive.athlete_name and dive.athlete_name != "Unknown Athlete":
+				# Normalize the name
+				dive.athlete_name = normalize_athlete_name(dive.athlete_name)
+				# Update round count
+				if dive.athlete_name in athlete_round_counts:
+					athlete_round_counts[dive.athlete_name] += 1
+					# Adjust round number based on actual count
+					if dive.round_number == 1:
+						dive.round_number = athlete_round_counts[dive.athlete_name]
+				continue
+			
+			# For unknown athletes, try to infer from document position
+			# This is a fallback - ideally athlete should be detected from headers
+			logger.debug(f"Dive with unknown athlete: {dive.dive_code}")
+		
+		return dives
+	
+	def _group_dives_by_event(
+		self,
+		dives: List[ExtractedDive]
+	) -> Dict[str, List[ExtractedDive]]:
+		"""Group dives by event name for multi-event PDFs.
+		
+		Args:
+			dives: All extracted dives
+		
+		Returns:
+			Dict mapping event names to lists of dives
+		"""
+		events = {}
+		unknown_event_dives = []
+		
+		for dive in dives:
+			event_name = dive.event_name or "Unknown Event"
+			if event_name == "Unknown Event":
+				unknown_event_dives.append(dive)
+			else:
+				if event_name not in events:
+					events[event_name] = []
+				events[event_name].append(dive)
+		
+		# If all dives are in unknown event, return them under a default key
+		if unknown_event_dives and not events:
+			events["Competition"] = unknown_event_dives
+		elif unknown_event_dives:
+			# Assign unknown dives to the most recent event or first event
+			if events:
+				first_event = list(events.keys())[0]
+				events[first_event].extend(unknown_event_dives)
+		
+		return events
+	
 	def _calculate_confidence(
 		self, 
 		competition_name: Optional[str], 
 		event_type: Optional[str], 
 		dives: List[ExtractedDive]
 	) -> float:
-		"""Calculate confidence score for extraction (0.0 - 1.0)"""
+		"""Calculate confidence score for extraction (0.0 - 1.0)
+		
+		Confidence is based on:
+		- Metadata completeness (competition name, event type)
+		- Number of dives extracted
+		- Quality of dive data (validation pass rates)
+		- Completeness of dive fields
+		"""
 		score = 0.0
 		
-		# Competition name found
+		# Competition name found (15%)
 		if competition_name:
 			score += 0.15
 		
-		# Event type found
+		# Event type found (10%)
 		if event_type:
 			score += 0.1
 		
-		# Dives extracted
+		# Dives extracted (up to 75%)
 		if dives:
-			# Base score for having dives
+			# Base score for having dives (25%)
 			score += 0.25
 			
-			# Bonus for number of dives
-			dive_count_bonus = min(len(dives) / 50, 0.2)  # Max 0.2 for 50+ dives
+			# Bonus for number of dives (up to 10%)
+			dive_count_bonus = min(len(dives) / 50, 0.1)  # Max 0.1 for 50+ dives
 			score += dive_count_bonus
 			
-			# Check quality of dive data
-			dives_with_scores = sum(1 for d in dives if d.judge_scores and len(d.judge_scores) >= 5)
-			dives_with_names = sum(1 for d in dives if d.athlete_name != "Unknown Athlete")
+			# Validation pass rates (up to 40%)
+			valid_dive_codes = 0
+			valid_judge_scores = 0
+			valid_difficulties = 0
+			complete_dives = 0
 			
-			if dives:
-				score_quality = dives_with_scores / len(dives) * 0.15
-				name_quality = dives_with_names / len(dives) * 0.15
-				score += score_quality + name_quality
+			for dive in dives:
+				# Validate dive code format
+				if dive.dive_code and self._validate_dive_code_format(dive.dive_code):
+					valid_dive_codes += 1
+				
+				# Validate judge scores
+				if dive.judge_scores and len(dive.judge_scores) >= 5:
+					scores_valid, _ = validate_judge_scores(dive.judge_scores)
+					if scores_valid:
+						valid_judge_scores += 1
+				
+				# Validate difficulty
+				if dive.difficulty:
+					dd_valid, _ = validate_difficulty(dive.difficulty)
+					if dd_valid:
+						valid_difficulties += 1
+				
+				# Check completeness
+				if (dive.dive_code and dive.athlete_name != "Unknown Athlete" and
+					dive.difficulty and (dive.judge_scores or dive.final_score)):
+					complete_dives += 1
+			
+			# Calculate validation rates
+			total_dives = len(dives)
+			dive_code_rate = valid_dive_codes / total_dives if total_dives > 0 else 0
+			judge_score_rate = valid_judge_scores / total_dives if total_dives > 0 else 0
+			difficulty_rate = valid_difficulties / total_dives if total_dives > 0 else 0
+			completeness_rate = complete_dives / total_dives if total_dives > 0 else 0
+			
+			# Weight the validation scores
+			validation_score = (
+				dive_code_rate * 0.1 +
+				judge_score_rate * 0.1 +
+				difficulty_rate * 0.1 +
+				completeness_rate * 0.1
+			)
+			score += validation_score
+			
+			# Log confidence breakdown for debugging
+			logger.debug(
+				f"Confidence breakdown: competition={bool(competition_name)}, "
+				f"event={bool(event_type)}, dives={total_dives}, "
+				f"dive_codes={dive_code_rate:.2f}, judge_scores={judge_score_rate:.2f}, "
+				f"difficulty={difficulty_rate:.2f}, complete={completeness_rate:.2f}"
+			)
 		
 		return min(score, 1.0)
 
