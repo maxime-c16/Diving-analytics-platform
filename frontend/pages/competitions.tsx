@@ -14,6 +14,7 @@ import {
   RefreshCw,
   ChevronRight,
   FileUp,
+  Bug,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui"
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui"
@@ -87,6 +88,11 @@ export default function CompetitionsPage() {
               </Link>
               <Link href="/competitions">
                 <Button variant="ghost" size="sm" className="text-primary">Competitions</Button>
+              </Link>
+              <Link href="/debug/ocr">
+                <Button variant="outline" size="sm" className="gap-1">
+                  <Bug className="h-4 w-4" /> Debug
+                </Button>
               </Link>
             </nav>
           </div>
