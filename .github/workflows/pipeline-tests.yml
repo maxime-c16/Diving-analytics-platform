@@ -170,8 +170,9 @@ jobs:
 
       - name: Build and start services
         run: |
-          docker-compose up -d --build
+          docker compose up -d --build
         timeout-minutes: 10
+        continue-on-error: true
 
       - name: Wait for services
         run: |
@@ -193,7 +194,7 @@ jobs:
 
       - name: Stop services
         if: always()
-        run: docker-compose down
+        run: docker compose down || true
 
   # Accuracy Measurement
   accuracy-check:

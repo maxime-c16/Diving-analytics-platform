@@ -14,9 +14,9 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const API_URL = process.env.API_URL || 'http://localhost/api';
 const PDF_FIXTURE_PATH = path.join(__dirname, '../../fixtures/ground-truth-expected.json');
 
-// Test data
+// Test data - use environment variable for PDF path if available
 const TEST_COMPETITION_NAME = 'E2E Test Competition';
-const TEST_PDF_PATH = path.join(__dirname, '../../../20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf');
+const TEST_PDF_PATH = process.env.TEST_PDF_PATH || path.join(__dirname, '../../../sample-competition.pdf');
 
 /**
  * Helper to wait for API response
