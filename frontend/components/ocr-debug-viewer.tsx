@@ -128,17 +128,17 @@ function validateDive(dive: ExtractedDive, index: number): DiveValidation {
   }
 
   // Validate judge scores
-  if (!dive.judge_scores || dive.judge_scores.length === 0) {
+  if (!dive.judgeScores || dive.judgeScores.length === 0) {
     issues.push("Missing judge scores")
     fieldStatus.judgeScores = "warning"
   } else {
     // Check count (should be 5-7)
-    if (dive.judge_scores.length < 5 || dive.judge_scores.length > 7) {
-      issues.push(`Unusual number of judge scores: ${dive.judge_scores.length}`)
+    if (dive.judgeScores.length < 5 || dive.judgeScores.length > 7) {
+      issues.push(`Unusual number of judge scores: ${dive.judgeScores.length}`)
       fieldStatus.judgeScores = "warning"
     }
     // Check range (0-10) and 0.5 increment
-    for (const score of dive.judge_scores) {
+    for (const score of dive.judgeScores) {
       if (score < 0 || score > 10) {
         issues.push(`Judge score out of range: ${score}`)
         fieldStatus.judgeScores = "error"
@@ -271,9 +271,9 @@ function DiveDebugRow({
   const updateField = (field: keyof ExtractedDive, value: string) => {
     setEditedDive(prev => {
       const updated = { ...prev }
-      if (field === 'judge_scores') {
+      if (field === 'judgeScores') {
         // Parse comma-separated scores
-        updated.judge_scores = value.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+        updated.judgeScores = value.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
       } else if (field === 'round_number' || field === 'rank') {
         (updated as any)[field] = parseInt(value) || undefined
       } else if (field === 'difficulty' || field === 'final_score') {
@@ -392,14 +392,14 @@ function DiveDebugRow({
                   </div>
                   {editing ? (
                     <Input
-                      value={editedDive.judge_scores?.join(', ') || ''}
-                      onChange={(e) => updateField('judge_scores', e.target.value)}
+                      value={editedDive.judgeScores?.join(', ') || ''}
+                      onChange={(e) => updateField('judgeScores', e.target.value)}
                       className="h-7 text-sm font-mono"
                       placeholder="7.0, 7.5, 8.0, 7.5, 7.0"
                     />
                   ) : (
                     <div className="flex flex-wrap gap-1">
-                      {dive.judge_scores?.map((score, i) => (
+                      {dive.judgeScores?.map((score, i) => (
                         <span key={i} className="font-mono text-xs bg-muted px-1 py-0.5 rounded">
                           {score.toFixed(1)}
                         </span>

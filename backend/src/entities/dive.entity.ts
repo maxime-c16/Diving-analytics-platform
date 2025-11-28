@@ -32,6 +32,9 @@ export class Dive {
   @Column({ name: 'final_score', type: 'decimal', precision: 5, scale: 2, nullable: true })
   finalScore: number;
 
+  @Column({ name: 'cumulative_score', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  cumulativeScore: number;
+
   @Column({ type: 'int', nullable: true })
   rank: number;
 

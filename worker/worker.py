@@ -115,6 +115,7 @@ class ExtractedDive:
 	judge_scores: List[float] = None
 	difficulty: Optional[float] = None
 	final_score: Optional[float] = None
+	cumulative_score: Optional[float] = None
 	rank: Optional[int] = None
 	country: Optional[str] = None
 	event_name: Optional[str] = None  # Event within competition (e.g., "Elite - Dames - 3m")
@@ -752,10 +753,17 @@ class DivingPDFParser:
 		athlete_dive_count: int = 0,
 		current_event: Optional[str] = None
 	) -> Optional[ExtractedDive]:
-		"""Parse a single FFN dive line.
+		"""Parse a single FFN/DiveRecorder dive line.
 		
-		Format: "101B 1.3 plongeon ordinaire avant 6.5 7.0 6.5 7.0 6.5 26.00"
-		Or: "101B 1.3 6.5 7.0 6.5 7.0 6.5 26.00"
+		Format: "101C plongeon ordinaire avant 3 14 60 4,5 50 50 5,0 15,0 21,00 21,00"
+		
+		DiveRecorder table structure (detected from ground truth PDF):
+		Col 1: Dive code (e.g., 101C)
+		Col 2: Description (text, skip)
+		Col 3: Height (1, 3, 5, 7.5, 10) - typically 3 for springboard
+		Col 4: Difficulty/Coe (1.0-4.5)
+		Cols 5+: Judge scores (J1-J7, typically 5-7 judges) in French decimal format
+		Last cols: Cumul, Points, Points [Pen]
 		"""
 		# Must have a dive code - try normal pattern first, then OCR error pattern
 		dive_match = re.search(self.DIVE_CODE_PATTERN, line)
@@ -777,132 +785,228 @@ class DivingPDFParser:
 		# Get everything after the dive code
 		post_dive = line[dive_match.end():].strip()
 		
-		# Remove French dive description words
+		# Remove French dive description words to isolate numbers
 		cleaned_post = post_dive
 		for word in french_dive_words:
 			cleaned_post = re.sub(rf'\b{word}\b', '', cleaned_post, flags=re.IGNORECASE)
 		
-		# Extract all numbers using French decimal parser
-		numbers = re.findall(r'(\d+[\.,]?\d*)', cleaned_post)
-		numbers = [self._parse_french_decimal(n) for n in numbers if n]
+		# Extract all numbers, handling French decimal format (comma)
+		number_strs = re.findall(r'(\d+[\.,]?\d*)', cleaned_post)
+		numbers = []
+		for n_str in number_strs:
+			try:
+				# Handle French decimal: "4,5" -> 4.5
+				val = float(n_str.replace(',', '.'))
+				numbers.append(val)
+			except ValueError:
+				continue
 		
 		if not numbers:
+			logger.debug(f"No numbers extracted from dive line: {line}")
 			return None
 		
-		# PDF format: Height Coef J1 J2 J3 J4 J5 J6 J7 Cumul Points Points [Pen]
-		# Example: 3 1,5 5,0 4,5 4,5 4,0 5,5 14,0 21,00 21,00
-		# Heights are: 1, 3, 5, 7.5, 10 (whole numbers or 7.5)
-		# DD (Coef) is: 1.0-4.5 range with 0.1 precision
+		# Parse the number sequence using DiveRecorder table structure
+		# Expected: Height Coe J1 J2 J3 J4 J5 [J6 J7] Cumul Points Points [Pen]
+		# Example: 3 1.4 6.0 4.5 5.0 5.0 5.0 15.0 21.00 21.00
 		
 		difficulty = None
 		judge_scores = []
 		final_score = None
+		cumulative_score = None
 		parsed_height = None
-		
-		def is_valid_judge_score_local(n: float) -> bool:
-			"""Judge scores must be 0-10 in 0.5 increments - using validation module"""
-			is_valid, _ = validate_judge_score(n)
-			return is_valid
 		
 		def is_diving_height(n: float) -> bool:
 			"""Diving heights are 1, 3, 5, 7.5, or 10"""
-			return n in [1, 1.0, 3, 3.0, 5, 5.0, 7.5, 10, 10.0]
+			return n in [1.0, 3.0, 5.0, 7.5, 10.0]
 		
-		def is_likely_difficulty_local(n: float) -> bool:
-			"""DD is typically 1.0-4.5 range - using validation module"""
+		def is_valid_difficulty(n: float) -> bool:
+			"""DD is typically 1.0-4.5 range"""
 			is_valid, _ = validate_difficulty(n)
 			return is_valid
 		
-		def is_likely_final_score(n: float) -> bool:
-			"""Final scores are typically > 10 and < 200"""
-			is_valid, _ = validate_final_score(n)
-			return is_valid and n > 10
+		def is_valid_judge_score_local(n: float) -> bool:
+			"""Judge scores are 0-10 in 0.5 increments"""
+			is_valid, _ = validate_judge_score(n)
+			return is_valid
 		
-		# Parse the number sequence:
-		# First number could be height (1, 3, 5, 7.5, 10) or DD
-		# If first number is a diving height, second number is DD
-		remaining_numbers = numbers.copy()
+		def is_final_score(n: float) -> bool:
+			"""Final scores are usually 2-digit decimals > 10"""
+			return n > 10 and n < 200 and (n % 0.01 < 0.001 or n % 0.05 < 0.001)
 		
-		if len(numbers) >= 2:
-			first_num = numbers[0]
-			second_num = numbers[1]
-			
-			# Check if first number is a diving height
-			if is_diving_height(first_num):
-				parsed_height = first_num
-				# Second number should be DD
-				if is_likely_difficulty_local(second_num):
-					difficulty = second_num
-					remaining_numbers = numbers[2:]
+		# Strategy: scan through numbers looking for pattern
+		# Height is usually first, then difficulty, then 5-7 judge scores
+		idx = 0
+		
+		# Try to detect height (1, 3, 5, 7.5, 10)
+		if idx < len(numbers) and is_diving_height(numbers[idx]):
+			parsed_height = numbers[idx]
+			idx += 1
+		
+		# Next should be difficulty
+		# Handle merged decimals: if 2-digit number, try dividing by 10
+		if idx < len(numbers):
+			potential_dd = numbers[idx]
+			# Try as-is first
+			if is_valid_difficulty(potential_dd):
+				difficulty = potential_dd
+				idx += 1
+			# Try merged decimal: 14 -> 1.4, 19 -> 1.9, 17 -> 1.7, 20 -> 2.0
+			elif 10 <= potential_dd < 50 and potential_dd == int(potential_dd):
+				merged_dd = potential_dd / 10.0
+				if is_valid_difficulty(merged_dd):
+					difficulty = merged_dd
+					idx += 1
 				else:
-					remaining_numbers = numbers[1:]
-			elif is_likely_difficulty_local(first_num):
-				# First number is DD (no height column in this format)
-				difficulty = first_num
-				remaining_numbers = numbers[1:]
-		elif len(numbers) == 1:
-			# Single number - could be DD or final score
-			if is_likely_difficulty_local(numbers[0]):
-				difficulty = numbers[0]
-				remaining_numbers = []
-			elif is_likely_final_score(numbers[0]):
-				final_score = numbers[0]
-				remaining_numbers = []
+					logger.debug(f"Could not extract difficulty from {potential_dd} or {merged_dd}")
+			else:
+				logger.debug(f"Could not extract difficulty from {potential_dd}")
 		
-		# Separate judge scores (valid 0.5 increments) from final score (>10)
-		for n in remaining_numbers:
+		# Remaining numbers should be judge scores followed by final scores
+		# Judge scores: 5-7 valid scores in range 0-10 by 0.5 increments
+		# After scores: cumul (sum, skip), points (dive_score × DD), cumulative_sum
+		remaining = numbers[idx:]
+		
+		# Extract judge scores: look for consecutive valid scores
+		# PDF Structure (from pdf-structure-analysis.md):
+		# Height | DD | J1 J2 J3 J4 J5 [J6 J7] | Cumul | Points | CumSum [Penalty]
+		#
+		# OCR issues to handle:
+		# - Merged decimals: "60" = "6,0" = 6.0, "25" = "2,5" = 2.5
+		# - French decimal: comma separator (4,5 = 4.5)
+		#
+		# Key insight: Cumul = sum of middle 3 judge scores (drop high and low)
+		# This allows us to distinguish cumul from a 6th judge score
+		
+		# Step 1: Collect first 5 potential judge scores
+		temp_scores = []
+		idx = 0
+		
+		while idx < len(remaining) and len(temp_scores) < 5:
+			n = remaining[idx]
+			
+			# Check if valid judge score as-is
 			if is_valid_judge_score_local(n):
-				judge_scores.append(n)
-			elif is_likely_final_score(n) and final_score is None:
-				final_score = n
+				temp_scores.append(n)
+				idx += 1
+			# Check merged decimal: 10-99 → 1.0-9.9
+			elif 10 <= n < 100 and n == int(n):
+				merged = n / 10.0
+				if is_valid_judge_score_local(merged):
+					temp_scores.append(merged)
+					idx += 1
+				else:
+					break
+			else:
+				break
 		
-		# Need at least some scores
+		# Step 2: Check if 6th number is cumul or another judge score
+		# Cumul = sum of middle 3 (after dropping highest and lowest)
+		if len(temp_scores) == 5 and idx < len(remaining):
+			sixth_raw = remaining[idx]
+			
+			# Calculate expected cumul from first 5 scores
+			sorted_scores = sorted(temp_scores)
+			expected_cumul = sum(sorted_scores[1:4])  # Middle 3
+			
+			# Check if sixth_raw matches expected cumul (comparing raw value, not merged)
+			# Cumul is typically 3-30 range for 5 judges
+			if abs(sixth_raw - expected_cumul) < 1.5:
+				# 5-judge panel: first 5 are judges, 6th is cumul
+				judge_scores = temp_scores
+				idx += 1  # Skip cumul
+			else:
+				# Try as merged value for judge score check
+				sixth_merged = sixth_raw
+				if 10 <= sixth_raw < 100 and sixth_raw == int(sixth_raw):
+					sixth_merged = sixth_raw / 10.0
+				
+				if is_valid_judge_score_local(sixth_merged):
+					# 6th is a judge score - continue collecting up to 7
+					judge_scores = temp_scores + [sixth_merged]
+					idx += 1
+					# Check for 7th judge
+					if idx < len(remaining):
+						seventh_raw = remaining[idx]
+						seventh = seventh_raw
+						if 10 <= seventh_raw < 100 and seventh_raw == int(seventh_raw):
+							seventh = seventh_raw / 10.0
+						if is_valid_judge_score_local(seventh):
+							judge_scores.append(seventh)
+							idx += 1
+					# Now skip cumul (for 7-judge panel)
+					if idx < len(remaining):
+						cumul_candidate = remaining[idx]
+						if 0 <= cumul_candidate <= 50:  # Reasonable cumul range
+							idx += 1
+				else:
+					# 6th is not a valid judge score - use 5 judges only
+					judge_scores = temp_scores
+		else:
+			judge_scores = temp_scores
+		
+		# Step 3: Extract Points (dive score)
+		if idx < len(remaining):
+			final_score = remaining[idx]
+			idx += 1
+		
+		# Step 4: Extract Cumulative Score
+		if idx < len(remaining):
+			cumulative_score = remaining[idx]
+			idx += 1
+		
+		# Log extraction results
+		if judge_scores:
+			logger.debug(f"Extracted {len(judge_scores)} judge scores for {dive_code}: {judge_scores}")
 		if not judge_scores and not final_score:
+			logger.debug(f"No valid scores extracted from dive line: {line}")
 			return None
 		
-		# Validate judge scores using validation module
+		# Validate judge scores
 		if judge_scores:
 			scores_valid, validation_errors = validate_judge_scores(judge_scores)
-			if not scores_valid or len(judge_scores) not in [5, 7]:
-				# Invalid judge scores or count - likely OCR error, discard
+			if not scores_valid:
 				logger.debug(f"Invalid judge scores for dive {dive_code}: {validation_errors}")
-				judge_scores = []
+				judge_scores = []  # Discard invalid scores
 		
-		# Validate difficulty using validation module
+		# Validate difficulty
 		if difficulty is not None:
 			dd_valid, dd_error = validate_difficulty(difficulty)
 			if not dd_valid:
 				logger.debug(f"Invalid difficulty {difficulty} for dive {dive_code}: {dd_error}")
-				# Try to correct using OCR module
-				corrected_dd, _, _ = correct_difficulty_ocr(str(difficulty))
-				if corrected_dd > 0:
+				# Try to correct OCR errors
+				corrected_dd, was_corrected, desc = correct_difficulty_ocr(str(difficulty))
+				if was_corrected and corrected_dd > 0:
 					difficulty = corrected_dd
+					logger.debug(f"Corrected difficulty: {desc}")
+				else:
+					difficulty = None
 		
-		# Limit to max 7 judges (safety check)
+		# Limit judge scores to 7
 		if len(judge_scores) > 7:
 			judge_scores = judge_scores[:7]
 		
-		# Determine round number:
-		# In diving, "round" typically means which dive number in the athlete's list
-		# Use athlete_dive_count + 1 (first dive = dive 1, second = dive 2, etc.)
-		# Only use explicit round_number if it was explicitly detected from text (not default)
+		# Determine effective round number
 		effective_round = athlete_dive_count + 1
 		
 		# Extract height from event name
 		detected_height = extract_height_from_event(current_event)
 		
-		return ExtractedDive(
+		dive = ExtractedDive(
 			athlete_name=current_athlete or "Unknown Athlete",
 			dive_code=dive_code,
 			round_number=effective_round,
 			judge_scores=judge_scores if judge_scores else None,
 			difficulty=difficulty,
 			final_score=final_score,
+			cumulative_score=cumulative_score,
 			rank=current_rank,
 			country=current_club,
 			event_name=current_event,
 			height=detected_height
 		)
+		
+		logger.debug(f"Parsed dive: code={dive_code}, diff={difficulty}, scores={judge_scores}, final={final_score}, cumsum={cumulative_score}")
+		return dive
 	
 	def _extract_dives_standard(self, text: str) -> List[ExtractedDive]:
 		"""Extract individual dive records using standard format"""
