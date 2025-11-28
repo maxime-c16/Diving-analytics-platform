@@ -454,6 +454,21 @@ The worker service will:
       
       const data = await response.json();
       
+      // Transform dives from snake_case (worker) to camelCase (frontend)
+      const transformedDives = data.data?.dives?.map((dive: any) => ({
+        athlete_name: dive.athlete_name,
+        dive_code: dive.dive_code,
+        round_number: dive.round_number,
+        judgeScores: dive.judge_scores,  // Transform snake_case to camelCase
+        difficulty: dive.difficulty,
+        final_score: dive.final_score,
+        cumulative_score: dive.cumulative_score,
+        rank: dive.rank,
+        country: dive.country,
+        event_name: dive.event_name,
+        height: dive.height,
+      }));
+      
       return {
         jobId: actualJobId,  // Return the actual worker job ID
         status: data.status,
@@ -463,11 +478,16 @@ The worker service will:
         eventType: data.data?.event_type,
         divesExtracted: data.data?.dives?.length || 0,
         errors: data.data?.errors,
-        dives: data.data?.dives,
+        dives: transformedDives,
         // Multi-height support
         detectedHeights: data.data?.detected_heights,
         eventsDetected: data.data?.events_detected,
         hasMultipleHeights: data.data?.has_multiple_heights || false,
+        // Progress tracking
+        phase: data.data?.phase,
+        currentPage: data.data?.currentPage,
+        totalPages: data.data?.totalPages,
+        progress: data.data?.progress,
       };
       
     } catch (error) {

@@ -14,7 +14,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Progress } from "@/components/ui"
 import { Button } from "@/components/ui"
 import { GradientText } from "@/components/aceternity"
 import { OcrDebugViewer } from "@/components/ocr-debug-viewer"
@@ -241,16 +241,34 @@ export default function OcrDebugPage() {
                     </Button>
                   )}
 
-                  {/* Processing Status */}
+                  {/* Processing Status with Progress Bar */}
                   {isProcessing && (
-                    <div className="flex items-center gap-3 p-4 bg-blue-500/10 rounded-lg">
-                      <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                      <div>
-                        <p className="font-medium text-blue-700 dark:text-blue-300">Processing OCR...</p>
-                        <p className="text-xs text-muted-foreground">
-                          This may take a few moments
-                        </p>
+                    <div className="p-4 bg-blue-500/10 rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                          <p className="font-medium text-blue-700 dark:text-blue-300">
+                            {jobStatus?.phase === 'converting' && 'Converting PDF...'}
+                            {jobStatus?.phase === 'ocr' && `Processing page ${jobStatus?.currentPage || 0} of ${jobStatus?.totalPages || '?'}`}
+                            {jobStatus?.phase === 'parsing' && 'Parsing extracted text...'}
+                            {(!jobStatus?.phase || jobStatus?.phase === 'starting') && 'Starting OCR processing...'}
+                          </p>
+                        </div>
+                        {jobStatus?.totalPages ? (
+                          <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                            {Math.round(jobStatus?.progress || 0)}%
+                          </span>
+                        ) : null}
                       </div>
+                      <Progress 
+                        value={jobStatus?.progress || 0} 
+                        max={100}
+                        className="h-2"
+                        indeterminate={!jobStatus?.totalPages || jobStatus?.phase === 'converting' || jobStatus?.phase === 'parsing'}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {jobStatus?.message || 'This may take a few moments'}
+                      </p>
                     </div>
                   )}
 

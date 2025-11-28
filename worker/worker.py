@@ -785,8 +785,17 @@ class DivingPDFParser:
 		# Get everything after the dive code
 		post_dive = line[dive_match.end():].strip()
 		
-		# Remove French dive description words to isolate numbers
+		# IMPORTANT: Remove "N vrille(s)" patterns FIRST, before removing individual words
+		# This prevents "1 vrille" from being parsed as height=1
 		cleaned_post = post_dive
+		# Pattern: digit(s) + space(s) + vrille(s) - need \s+ for "1 vrille" case
+		cleaned_post = re.sub(r'\b\d+\s+vrilles?\b', '', cleaned_post, flags=re.IGNORECASE)
+		# Handle ½ vrille separately
+		cleaned_post = re.sub(r'½\s*vrilles?\b', '', cleaned_post, flags=re.IGNORECASE)
+		# Also remove "et demi" which sometimes appears with numbers
+		cleaned_post = re.sub(r'\bet\s+demi\b', '', cleaned_post, flags=re.IGNORECASE)
+		
+		# Now remove individual French dive description words to isolate numbers
 		for word in french_dive_words:
 			cleaned_post = re.sub(rf'\b{word}\b', '', cleaned_post, flags=re.IGNORECASE)
 		
@@ -819,6 +828,18 @@ class DivingPDFParser:
 			"""Diving heights are 1, 3, 5, 7.5, or 10"""
 			return n in [1.0, 3.0, 5.0, 7.5, 10.0]
 		
+		def try_parse_height(n: float) -> Optional[float]:
+			"""Try to parse a number as a diving height, handling OCR merged decimals.
+			
+			E.g., 75 -> 7.5, 10 -> 10.0
+			"""
+			if is_diving_height(n):
+				return n
+			# Handle merged decimal: 75 -> 7.5
+			if n == 75:
+				return 7.5
+			return None
+		
 		def is_valid_difficulty(n: float) -> bool:
 			"""DD is typically 1.0-4.5 range"""
 			is_valid, _ = validate_difficulty(n)
@@ -837,10 +858,12 @@ class DivingPDFParser:
 		# Height is usually first, then difficulty, then 5-7 judge scores
 		idx = 0
 		
-		# Try to detect height (1, 3, 5, 7.5, 10)
-		if idx < len(numbers) and is_diving_height(numbers[idx]):
-			parsed_height = numbers[idx]
-			idx += 1
+		# Try to detect height (1, 3, 5, 7.5, 10) - also handle OCR merged 75 -> 7.5
+		if idx < len(numbers):
+			parsed_h = try_parse_height(numbers[idx])
+			if parsed_h is not None:
+				parsed_height = parsed_h
+				idx += 1
 		
 		# Next should be difficulty
 		# Handle merged decimals: if 2-digit number, try dividing by 10
@@ -1476,13 +1499,23 @@ class PDFOCRProcessor:
 		self.lang = lang  # Use both English and French by default
 		self.parser = DivingPDFParser()
 	
-	def process_pdf_bytes(self, pdf_bytes: bytes) -> ExtractionResult:
-		"""Process PDF from bytes and extract diving data"""
+	def process_pdf_bytes(self, pdf_bytes: bytes, progress_callback=None) -> ExtractionResult:
+		"""Process PDF from bytes and extract diving data
+		
+		Args:
+			pdf_bytes: Raw PDF file bytes
+			progress_callback: Optional callable(phase, current, total, message) for progress updates
+		"""
+		def report_progress(phase: str, current: int, total: int, message: str):
+			if progress_callback:
+				progress_callback(phase, current, total, message)
+		
 		try:
 			start_time = time.time()
 			
 			# Convert PDF to images
 			logger.info("Converting PDF to images...")
+			report_progress('converting', 0, 0, 'Converting PDF to images...')
 			pdf_convert_start = time.time()
 			images = convert_from_bytes(
 				pdf_bytes,
@@ -1499,13 +1532,15 @@ class PDFOCRProcessor:
 				)
 			
 			logger.info(f"Converted {len(images)} pages in {pdf_convert_time:.2f}s")
+			total_pages = len(images)
 			
 			# Extract text from each page
 			all_text = []
 			ocr_total_time = 0
 			for i, image in enumerate(images):
 				page_start = time.time()
-				logger.info(f"Processing page {i + 1}/{len(images)}...")
+				logger.info(f"Processing page {i + 1}/{total_pages}...")
+				report_progress('ocr', i + 1, total_pages, f'Running OCR on page {i + 1} of {total_pages}')
 				
 				# Preprocess image for better OCR
 				processed_image = self._preprocess_image(image)
@@ -1527,9 +1562,12 @@ class PDFOCRProcessor:
 			logger.info(f"Total OCR time: {ocr_total_time:.2f}s for {len(combined_text)} characters")
 			
 			# Parse the extracted text
+			report_progress('parsing', 0, 0, 'Parsing extracted text...')
 			parse_start = time.time()
 			result = self.parser.parse_text(combined_text)
 			parse_time = time.time() - parse_start
+			
+			report_progress('complete', total_pages, total_pages, 'Processing complete')
 			
 			total_time = time.time() - start_time
 			
@@ -1595,16 +1633,32 @@ def process_pdf_task(self, job_id: str, pdf_bytes_b64: str, metadata: dict):
 	
 	logger.info(f"Starting PDF processing for job {job_id}")
 	
+	def progress_callback(phase: str, current: int, total: int, message: str):
+		"""Send progress updates to Redis"""
+		update_job_status(job_id, 'processing', {
+			'message': message,
+			'phase': phase,
+			'currentPage': current,
+			'totalPages': total,
+			'progress': (current / total * 100) if total > 0 else 0
+		})
+	
 	try:
 		# Update job status
-		update_job_status(job_id, 'processing', {'message': 'Starting OCR processing'})
+		update_job_status(job_id, 'processing', {
+			'message': 'Starting OCR processing',
+			'phase': 'starting',
+			'currentPage': 0,
+			'totalPages': 0,
+			'progress': 0
+		})
 		
 		# Decode PDF bytes
 		pdf_bytes = base64.b64decode(pdf_bytes_b64)
 		
-		# Process PDF
+		# Process PDF with progress callback
 		processor = PDFOCRProcessor()
-		result = processor.process_pdf_bytes(pdf_bytes)
+		result = processor.process_pdf_bytes(pdf_bytes, progress_callback=progress_callback)
 		
 		# Convert result to dict
 		result_dict = {

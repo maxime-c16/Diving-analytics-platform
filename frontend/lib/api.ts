@@ -310,6 +310,11 @@ export interface PdfJobStatus {
   detectedHeights?: DivingHeight[];
   eventsDetected?: string[];
   hasMultipleHeights?: boolean;
+  // Progress tracking
+  phase?: 'starting' | 'converting' | 'ocr' | 'parsing' | 'complete';
+  currentPage?: number;
+  totalPages?: number;
+  progress?: number; // 0-100 percentage
 }
 
 export interface ExtractedDive {

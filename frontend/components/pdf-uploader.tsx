@@ -13,7 +13,7 @@ import {
   X,
   Info,
 } from "lucide-react"
-import { Button, Input, Label } from "@/components/ui"
+import { Button, Input, Label, Progress } from "@/components/ui"
 import { api, type PdfJobStatus, type DivingHeight, DIVING_HEIGHTS } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -235,34 +235,33 @@ export function PdfUploader({ onComplete }: PdfUploaderProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="rounded-lg border bg-muted/50 p-4"
+            className="rounded-lg border bg-blue-500/10 p-4 space-y-3"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="font-medium">Processing OCR...</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-muted-foreground">Status:</span>{" "}
-                <span className="capitalize">{jobStatus.status}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="font-medium text-blue-700 dark:text-blue-300">
+                  {jobStatus.phase === 'converting' && 'Converting PDF...'}
+                  {jobStatus.phase === 'ocr' && `Processing page ${jobStatus.currentPage || 0} of ${jobStatus.totalPages || '?'}`}
+                  {jobStatus.phase === 'parsing' && 'Parsing extracted text...'}
+                  {(!jobStatus.phase || jobStatus.phase === 'starting') && 'Starting OCR processing...'}
+                </span>
               </div>
-              {jobStatus.divesExtracted !== undefined && (
-                <div>
-                  <span className="text-muted-foreground">Dives:</span> {jobStatus.divesExtracted}
-                </div>
-              )}
-              {jobStatus.confidence !== undefined && (
-                <div>
-                  <span className="text-muted-foreground">Confidence:</span>{" "}
-                  {(jobStatus.confidence * 100).toFixed(0)}%
-                </div>
-              )}
-              {jobStatus.competitionName && (
-                <div className="col-span-2 truncate">
-                  <span className="text-muted-foreground">Competition:</span> {jobStatus.competitionName}
-                </div>
-              )}
+              {jobStatus.totalPages ? (
+                <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                  {Math.round(jobStatus.progress || 0)}%
+                </span>
+              ) : null}
             </div>
+            <Progress 
+              value={jobStatus.progress || 0} 
+              max={100}
+              className="h-2"
+              indeterminate={!jobStatus.totalPages || jobStatus.phase === 'converting' || jobStatus.phase === 'parsing'}
+            />
+            <p className="text-xs text-muted-foreground">
+              {jobStatus.message || 'This may take a few moments'}
+            </p>
           </motion.div>
         )}
 

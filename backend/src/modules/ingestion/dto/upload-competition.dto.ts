@@ -298,4 +298,29 @@ export class PdfJobStatusDto {
     example: true,
   })
   hasMultipleHeights?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Current processing phase',
+    enum: ['starting', 'converting', 'ocr', 'parsing', 'complete'],
+    example: 'ocr',
+  })
+  phase?: string;
+
+  @ApiPropertyOptional({
+    description: 'Current page being processed (during OCR phase)',
+    example: 3,
+  })
+  currentPage?: number;
+
+  @ApiPropertyOptional({
+    description: 'Total number of pages to process',
+    example: 5,
+  })
+  totalPages?: number;
+
+  @ApiPropertyOptional({
+    description: 'Progress percentage (0-100)',
+    example: 60,
+  })
+  progress?: number;
 }
