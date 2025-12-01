@@ -47,7 +47,6 @@ import {
   type CompetitionData,
   type AthleteResult,
   type RoundData,
-  type JudgeStatsResult,
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { calculateEffectiveSum, getDroppedIndices } from "@/lib/scoring"
@@ -75,7 +74,6 @@ export default function CompetitionDetailPage() {
   const { id } = router.query
   const [log, setLog] = useState<IngestionLog | null>(null)
   const [competitionData, setCompetitionData] = useState<CompetitionData | null>(null)
-  const [judgeStats, setJudgeStats] = useState<JudgeStatsResult | null>(null)
   const [errors, setErrors] = useState<RowError[]>([])
   const [loading, setLoading] = useState(true)
   const [retrying, setRetrying] = useState(false)
@@ -105,12 +103,8 @@ export default function CompetitionDetailPage() {
       // Fetch competition data for completed or partial imports (partial = some dives imported successfully)
       if ((logData.status === "completed" || logData.status === "partial") && logData.competitionId) {
         try {
-          const [compData, judgeStatsData] = await Promise.all([
-            api.getCompetitionData(id),
-            api.getJudgeStats(id).catch(() => null), // Optional, don't fail if unavailable
-          ]);
+          const compData = await api.getCompetitionData(id);
           setCompetitionData(compData)
-          setJudgeStats(judgeStatsData)
         } catch (err) {
           console.error("Failed to fetch competition data", err)
         }
@@ -862,22 +856,8 @@ export default function CompetitionDetailPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Judge Consistency Chart */}
-                  {judgeStats && judgeStats.judges && judgeStats.judges.length > 0 ? (
-                    <JudgeConsistencyChart judgeStats={judgeStats} />
-                  ) : (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Judge Consistency</CardTitle>
-                        <CardDescription>Mean and standard deviation by judge</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground text-center py-8">
-                          {judgeStats ? "No judge score data available for this competition." : "Loading judge statistics..."}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* Judge Consistency Chart - Now uses filtered dives */}
+                  <JudgeConsistencyChart dives={allDives} />
 
                   {/* Score Distribution */}
                   <Card>

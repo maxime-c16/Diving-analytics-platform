@@ -16,40 +16,116 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { JudgeStatsResult } from '@/lib/api';
+import type { ExtendedDiveResult } from '@/lib/types';
 
 interface JudgeConsistencyProps {
-  judgeStats: JudgeStatsResult;
+  /** Dives to analyze - should be pre-filtered by event if needed */
+  dives: ExtendedDiveResult[];
   className?: string;
 }
 
 /**
- * Judge Consistency Chart - Reworked
+ * Judge Consistency Chart - Computes stats from filtered dives
  * 
  * Multi-view visualization showing:
  * 1. Bias Chart: Shows each judge's deviation from panel mean (are they harsh or lenient?)
  * 2. Consistency Chart: Shows standard deviation per judge (how consistent are they?)
  * 3. Summary: Overview of key findings and all judge stats
  * 
+ * Now computes statistics directly from dives, respecting event filtering.
+ * 
  * @see specs/002-ui-overhaul/data-model.md - JudgeConsistencyData
  */
 export function JudgeConsistencyChart({ 
-  judgeStats, 
+  dives, 
   className 
 }: JudgeConsistencyProps) {
   const [activeView, setActiveView] = useState<'bias' | 'consistency' | 'summary'>('bias');
   
-  // Calculate panel-wide statistics and judge deviations
+  // Calculate judge statistics from dives
   const analysisData = useMemo(() => {
-    if (!judgeStats || !judgeStats.judges || judgeStats.judges.length === 0) return null;
+    // Filter dives that have judge scores
+    const divesWithScores = dives.filter(d => d.judgeScores && d.judgeScores.length > 0);
+    if (divesWithScores.length === 0) return null;
     
-    const { judges, overallConsistency } = judgeStats;
+    // Find max number of judges
+    let maxJudges = 0;
+    for (const dive of divesWithScores) {
+      if (dive.judgeScores && dive.judgeScores.length > maxJudges) {
+        maxJudges = dive.judgeScores.length;
+      }
+    }
     
-    // Calculate overall panel mean (average of all judge means)
+    if (maxJudges === 0) return null;
+    
+    // Calculate per-judge statistics
+    interface JudgeStat {
+      judgeIndex: number;
+      judge: string;
+      mean: number;
+      std: number;
+      min: number;
+      max: number;
+      diveCount: number;
+      consistency: 'high' | 'medium' | 'low';
+    }
+    
+    const judges: JudgeStat[] = [];
+    
+    for (let j = 0; j < maxJudges; j++) {
+      const scores: number[] = [];
+      
+      for (const dive of divesWithScores) {
+        if (dive.judgeScores && dive.judgeScores[j] !== undefined) {
+          scores.push(dive.judgeScores[j]);
+        }
+      }
+      
+      if (scores.length === 0) continue;
+      
+      const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const squaredDiffs = scores.map(s => Math.pow(s - mean, 2));
+      const variance = squaredDiffs.reduce((a, b) => a + b, 0) / scores.length;
+      const std = Math.sqrt(variance);
+      
+      // Determine consistency rating based on standard deviation
+      let consistency: 'high' | 'medium' | 'low';
+      if (std < 0.8) {
+        consistency = 'high';
+      } else if (std < 1.2) {
+        consistency = 'medium';
+      } else {
+        consistency = 'low';
+      }
+      
+      judges.push({
+        judgeIndex: j,
+        judge: `J${j + 1}`,
+        mean,
+        std,
+        min: Math.min(...scores),
+        max: Math.max(...scores),
+        diveCount: scores.length,
+        consistency,
+      });
+    }
+    
+    if (judges.length === 0) return null;
+    
+    // Calculate overall panel statistics
     const panelMean = judges.reduce((sum, j) => sum + j.mean, 0) / judges.length;
-    
-    // Calculate overall panel std (average of all stds)
     const panelStd = judges.reduce((sum, j) => sum + j.std, 0) / judges.length;
+    
+    // Determine overall consistency
+    const avgStd = panelStd;
+    let overallConsistency: 'high' | 'medium' | 'low';
+    if (avgStd < 0.8) {
+      overallConsistency = 'high';
+    } else if (avgStd < 1.2) {
+      overallConsistency = 'medium';
+    } else {
+      overallConsistency = 'low';
+    }
     
     // Calculate bias and consistency metrics for each judge
     const judgeAnalysis = judges.map((judge) => {
@@ -95,7 +171,7 @@ export function JudgeConsistencyChart({
       leastConsistent,
       maxBias: Math.max(...judgeAnalysis.map(j => Math.abs(j.bias))),
     };
-  }, [judgeStats]);
+  }, [dives]);
 
   if (!analysisData) {
     return (
