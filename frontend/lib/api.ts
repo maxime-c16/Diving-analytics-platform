@@ -74,6 +74,20 @@ export interface JudgeConsistencyResult {
   consistency: 'high' | 'medium' | 'low';
 }
 
+export interface JudgeStatsResult {
+  judges: {
+    judgeIndex: number;
+    judge: string;
+    mean: number;
+    std: number;
+    min: number;
+    max: number;
+    diveCount: number;
+    consistency: 'high' | 'medium' | 'low';
+  }[];
+  overallConsistency: 'high' | 'medium' | 'low';
+}
+
 class ApiClient {
   private async fetch<T>(url: string, options?: RequestInit): Promise<T> {
     const response = await fetch(url, {
@@ -237,6 +251,42 @@ class ApiClient {
         body: JSON.stringify(updates),
       }
     );
+  }
+
+  // Delete a dive from the database
+  async deleteDive(diveId: number) {
+    return this.fetch<{ success: boolean; message: string; deletedId: number }>(
+      `${API_BASE}/ingestion/dive/${diveId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  }
+
+  // Delete a competition and all its dives
+  async deleteCompetition(competitionId: number) {
+    return this.fetch<{ success: boolean; message: string; deletedId: number }>(
+      `${API_BASE}/ingestion/competition/${competitionId}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  }
+
+  // Update an athlete's details
+  async updateAthlete(athleteId: number, updates: Partial<{ name: string; country: string }>) {
+    return this.fetch<{ success: boolean; message: string }>(
+      `${API_BASE}/ingestion/athlete/${athleteId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      }
+    );
+  }
+
+  // Get judge consistency statistics for a competition
+  async getJudgeStats(competitionId: string) {
+    return this.fetch<JudgeStatsResult>(`${API_BASE}/ingestion/competition/${competitionId}/judge-stats`);
   }
 
   // CSV upload

@@ -929,4 +929,183 @@ export class IngestionService {
     
     return dive;
   }
+
+  /**
+   * Delete a dive from the database
+   */
+  async deleteDive(diveId: number): Promise<void> {
+    const dive = await this.diveRepository.findOne({ where: { id: diveId } });
+    
+    if (!dive) {
+      throw new NotFoundException(`Dive with ID ${diveId} not found`);
+    }
+
+    await this.diveRepository.delete(diveId);
+    this.logger.log(`Deleted dive ${diveId}`);
+  }
+
+  /**
+   * Delete a competition and all its associated dives
+   */
+  async deleteCompetition(competitionId: number): Promise<{ message: string; deletedDives: number }> {
+    const competition = await this.competitionRepository.findOne({ 
+      where: { id: competitionId } 
+    });
+    
+    if (!competition) {
+      throw new NotFoundException(`Competition with ID ${competitionId} not found`);
+    }
+
+    // Count dives before deletion
+    const diveCount = await this.diveRepository.count({ 
+      where: { competitionId } 
+    });
+
+    // Delete all dives for this competition
+    await this.diveRepository.delete({ competitionId });
+
+    // Delete the competition
+    await this.competitionRepository.delete(competitionId);
+
+    // Also delete associated ingestion logs
+    await this.ingestionLogRepository.delete({ competitionId });
+
+    this.logger.log(`Deleted competition ${competitionId} with ${diveCount} dives`);
+
+    return {
+      message: `Competition and ${diveCount} dives deleted successfully`,
+      deletedDives: diveCount,
+    };
+  }
+
+  /**
+   * Update an athlete's details
+   */
+  async updateAthlete(
+    athleteId: number,
+    updates: { name?: string; country?: string },
+  ): Promise<void> {
+    const athlete = await this.athleteRepository.findOne({ 
+      where: { id: athleteId } 
+    });
+    
+    if (!athlete) {
+      throw new NotFoundException(`Athlete with ID ${athleteId} not found`);
+    }
+
+    if (updates.name !== undefined) {
+      athlete.name = updates.name;
+    }
+    
+    if (updates.country !== undefined) {
+      athlete.country = updates.country;
+    }
+
+    await this.athleteRepository.save(athlete);
+    this.logger.log(`Updated athlete ${athleteId}`);
+  }
+
+  /**
+   * Get judge consistency statistics for a competition
+   */
+  async getJudgeStats(id: string) {
+    // Get competition ID
+    const log = await this.ingestionLogRepository.findOne({ where: { id } });
+    
+    let competitionId: number;
+    if (log && log.competitionId) {
+      competitionId = log.competitionId;
+    } else if (!isNaN(Number(id))) {
+      competitionId = Number(id);
+    } else {
+      throw new NotFoundException(`Competition not found for ID: ${id}`);
+    }
+
+    // Get all dives with judge scores
+    const dives = await this.diveRepository.find({
+      where: { competitionId },
+      select: ['judgeScores'],
+    });
+
+    // Find max number of judges
+    let maxJudges = 0;
+    for (const dive of dives) {
+      if (dive.judgeScores && dive.judgeScores.length > maxJudges) {
+        maxJudges = dive.judgeScores.length;
+      }
+    }
+
+    if (maxJudges === 0) {
+      return {
+        judges: [],
+        overallConsistency: 'low' as const,
+      };
+    }
+
+    // Calculate per-judge statistics
+    const judgeStats: {
+      judgeIndex: number;
+      judge: string;
+      mean: number;
+      std: number;
+      min: number;
+      max: number;
+      diveCount: number;
+      consistency: 'high' | 'medium' | 'low';
+    }[] = [];
+
+    for (let j = 0; j < maxJudges; j++) {
+      const scores: number[] = [];
+      
+      for (const dive of dives) {
+        if (dive.judgeScores && dive.judgeScores[j] !== undefined) {
+          scores.push(dive.judgeScores[j]);
+        }
+      }
+
+      if (scores.length === 0) continue;
+
+      const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const squaredDiffs = scores.map(s => Math.pow(s - mean, 2));
+      const variance = squaredDiffs.reduce((a, b) => a + b, 0) / scores.length;
+      const std = Math.sqrt(variance);
+
+      // Determine consistency rating based on standard deviation
+      let consistency: 'high' | 'medium' | 'low';
+      if (std < 0.8) {
+        consistency = 'high';
+      } else if (std < 1.2) {
+        consistency = 'medium';
+      } else {
+        consistency = 'low';
+      }
+
+      judgeStats.push({
+        judgeIndex: j,
+        judge: `J${j + 1}`,
+        mean: Math.round(mean * 100) / 100,
+        std: Math.round(std * 100) / 100,
+        min: Math.min(...scores),
+        max: Math.max(...scores),
+        diveCount: scores.length,
+        consistency,
+      });
+    }
+
+    // Overall consistency based on average std
+    const avgStd = judgeStats.reduce((sum, j) => sum + j.std, 0) / judgeStats.length;
+    let overallConsistency: 'high' | 'medium' | 'low';
+    if (avgStd < 0.8) {
+      overallConsistency = 'high';
+    } else if (avgStd < 1.2) {
+      overallConsistency = 'medium';
+    } else {
+      overallConsistency = 'low';
+    }
+
+    return {
+      judges: judgeStats,
+      overallConsistency,
+    };
+  }
 }

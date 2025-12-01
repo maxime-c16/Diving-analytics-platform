@@ -242,7 +242,11 @@ export function PdfUploader({ onComplete }: PdfUploaderProps) {
                 <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 <span className="font-medium text-blue-700 dark:text-blue-300">
                   {jobStatus.phase === 'converting' && 'Converting PDF...'}
-                  {jobStatus.phase === 'ocr' && `Processing page ${jobStatus.currentPage || 0} of ${jobStatus.totalPages || '?'}`}
+                  {jobStatus.phase === 'ocr' && (
+                    typeof jobStatus.currentPage === 'number' && jobStatus.currentPage > 0
+                      ? `Processing page ${jobStatus.currentPage} of ${jobStatus.totalPages || '?'}`
+                      : 'Initializing OCR...'
+                  )}
                   {jobStatus.phase === 'parsing' && 'Parsing extracted text...'}
                   {(!jobStatus.phase || jobStatus.phase === 'starting') && 'Starting OCR processing...'}
                 </span>

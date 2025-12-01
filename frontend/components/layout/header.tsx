@@ -2,8 +2,9 @@
 
 import React from "react"
 import Link from "next/link"
+import { useRouter } from "next/router"
 import { motion } from "framer-motion"
-import { Activity, BarChart3, FileUp, Settings, Users, Trophy } from "lucide-react"
+import { Activity, BarChart3, Calculator, Settings, Users, Trophy } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 
@@ -12,13 +13,16 @@ interface HeaderProps {
 }
 
 const navItems = [
-  { name: "Dashboard", href: "/", icon: BarChart3 },
   { name: "Competitions", href: "/competitions", icon: Trophy },
+  { name: "Calculator", href: "/calculator", icon: Calculator },
   { name: "Athletes", href: "/athletes", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 export function Header({ className }: HeaderProps) {
+  const router = useRouter()
+  const currentPath = router.pathname
+
   return (
     <motion.header
       initial={{ y: -100 }}
@@ -40,16 +44,26 @@ export function Header({ className }: HeaderProps) {
         </div>
         
         <nav className="flex items-center gap-6 text-sm flex-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="flex items-center gap-2 text-foreground/60 transition-colors hover:text-foreground"
-            >
-              <item.icon className="h-4 w-4" />
-              <span className="hidden md:inline-block">{item.name}</span>
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const isActive = currentPath === item.href || 
+              (item.href !== "/" && currentPath.startsWith(item.href))
+            
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-2 transition-colors",
+                  isActive 
+                    ? "text-primary font-medium" 
+                    : "text-foreground/60 hover:text-foreground"
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                <span className="hidden md:inline-block">{item.name}</span>
+              </Link>
+            )
+          })}
         </nav>
 
         <div className="flex items-center gap-2">

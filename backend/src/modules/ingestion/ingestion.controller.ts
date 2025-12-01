@@ -4,6 +4,7 @@ import {
   Get,
   Put,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -720,6 +721,165 @@ The worker service will:
       success: true,
       message: 'Dive updated successfully',
     };
+  }
+
+  @Delete('dive/:id')
+  @ApiOperation({
+    summary: 'Delete a dive from the database',
+    description: 'Permanently delete a specific dive record.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Dive ID',
+    example: '1',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Dive deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Dive deleted successfully' },
+        deletedId: { type: 'number', example: 1 },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Dive not found',
+  })
+  async deleteDive(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; message: string; deletedId: number }> {
+    const diveId = parseInt(id, 10);
+    await this.ingestionService.deleteDive(diveId);
+    return {
+      success: true,
+      message: 'Dive deleted successfully',
+      deletedId: diveId,
+    };
+  }
+
+  @Delete('competition/:id')
+  @ApiOperation({
+    summary: 'Delete a competition and all associated dives',
+    description: 'Permanently delete a competition and cascade delete all its dives.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Competition ID',
+    example: '1',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Competition deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Competition and 25 dives deleted successfully' },
+        deletedId: { type: 'number', example: 1 },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Competition not found',
+  })
+  async deleteCompetition(
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; message: string; deletedId: number }> {
+    const competitionId = parseInt(id, 10);
+    const result = await this.ingestionService.deleteCompetition(competitionId);
+    return {
+      success: true,
+      message: result.message,
+      deletedId: competitionId,
+    };
+  }
+
+  @Patch('athlete/:id')
+  @ApiOperation({
+    summary: 'Update an athlete',
+    description: 'Update athlete name or country. Changes cascade to all associated dives.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Athlete ID',
+    example: '1',
+  })
+  @ApiBody({
+    description: 'Athlete fields to update',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'John Smith' },
+        country: { type: 'string', example: 'USA' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Athlete updated successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Athlete not found',
+  })
+  async updateAthlete(
+    @Param('id') id: string,
+    @Body() updates: { name?: string; country?: string },
+  ): Promise<{ success: boolean; message: string }> {
+    await this.ingestionService.updateAthlete(parseInt(id, 10), updates);
+    return {
+      success: true,
+      message: 'Athlete updated successfully',
+    };
+  }
+
+  @Get('competition/:id/judge-stats')
+  @ApiOperation({
+    summary: 'Get judge consistency statistics for a competition',
+    description: 'Calculate per-judge scoring statistics including mean, std, min, max.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Competition ID or Ingestion Job UUID',
+    example: '1',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Judge statistics',
+    schema: {
+      type: 'object',
+      properties: {
+        judges: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              judgeIndex: { type: 'number', example: 0 },
+              judge: { type: 'string', example: 'J1' },
+              mean: { type: 'number', example: 7.2 },
+              std: { type: 'number', example: 0.8 },
+              min: { type: 'number', example: 5.0 },
+              max: { type: 'number', example: 9.5 },
+              diveCount: { type: 'number', example: 45 },
+              consistency: { type: 'string', enum: ['high', 'medium', 'low'] },
+            },
+          },
+        },
+        overallConsistency: { type: 'string', enum: ['high', 'medium', 'low'] },
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Competition not found',
+  })
+  async getJudgeStats(@Param('id') id: string) {
+    return this.ingestionService.getJudgeStats(id);
   }
 
   @Get('competition/:id')

@@ -1,0 +1,275 @@
+openapi: 3.0.3
+info:
+  title: Diving Analytics - UI Overhaul API Extensions
+  version: 2.0.0
+  description: Extended API endpoints for UI overhaul feature (CRUD operations, chart data)
+
+servers:
+  - url: http://localhost/api
+    description: Development server
+
+paths:
+  /ingestion/dive/{diveId}:
+    patch:
+      summary: Update dive (existing, documented for completeness)
+      tags: [Dives]
+      parameters:
+        - name: diveId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDiveRequest'
+      responses:
+        '200':
+          description: Dive updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Dive not found
+        '400':
+          description: Validation error
+
+    delete:
+      summary: Delete dive (NEW)
+      tags: [Dives]
+      parameters:
+        - name: diveId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dive deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+        '404':
+          description: Dive not found
+
+  /ingestion/competition/{competitionId}:
+    delete:
+      summary: Delete competition and all associated dives (NEW)
+      tags: [Competitions]
+      parameters:
+        - name: competitionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Competition deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+        '404':
+          description: Competition not found
+
+  /ingestion/athlete/{athleteId}:
+    patch:
+      summary: Update athlete (NEW)
+      tags: [Athletes]
+      parameters:
+        - name: athleteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAthleteRequest'
+      responses:
+        '200':
+          description: Athlete updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Athlete not found
+
+  /ingestion/competition/{competitionId}/judge-stats:
+    get:
+      summary: Get judge consistency statistics for a competition (NEW)
+      tags: [Analytics]
+      parameters:
+        - name: competitionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Judge statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  judges:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/JudgeStats'
+                  overallConsistency:
+                    type: string
+                    enum: [high, medium, low]
+
+components:
+  schemas:
+    UpdateDiveRequest:
+      type: object
+      properties:
+        athleteName:
+          type: string
+          description: Athlete name (updates athlete record)
+        diveCode:
+          type: string
+          pattern: '^[1-6]\d{2,3}[A-D]$'
+          description: Dive code (e.g., 101B, 5231D)
+        roundNumber:
+          type: integer
+          minimum: 1
+          maximum: 10
+        judgeScores:
+          type: array
+          items:
+            type: number
+            minimum: 0
+            maximum: 10
+          minItems: 5
+          maxItems: 7
+        difficulty:
+          type: number
+          minimum: 1.0
+          maximum: 4.5
+        finalScore:
+          type: number
+          minimum: 0
+          maximum: 200
+        penaltyCode:
+          type: string
+          description: Penalty code if applicable
+
+    UpdateAthleteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        country:
+          type: string
+          maxLength: 100
+
+    SuccessResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    DeleteResponse:
+      type: object
+      required: [success, message, deletedId]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        deletedId:
+          type: integer
+
+    JudgeStats:
+      type: object
+      required: [judgeIndex, mean, std, min, max, diveCount]
+      properties:
+        judgeIndex:
+          type: integer
+          description: Judge position (0-6)
+        judge:
+          type: string
+          description: Judge label (J1, J2, etc.)
+        mean:
+          type: number
+          description: Average score given by this judge
+        std:
+          type: number
+          description: Standard deviation of scores
+        min:
+          type: number
+        max:
+          type: number
+        diveCount:
+          type: integer
+          description: Number of dives scored by this judge
+        consistency:
+          type: string
+          enum: [high, medium, low]
+          description: Consistency rating based on std deviation
+
+    ExtendedDiveResult:
+      type: object
+      description: Extended dive result with scoring details
+      properties:
+        id:
+          type: integer
+        roundNumber:
+          type: integer
+        diveCode:
+          type: string
+        difficulty:
+          type: number
+        judgeScores:
+          type: array
+          items:
+            type: number
+        finalScore:
+          type: number
+        rank:
+          type: integer
+        eventName:
+          type: string
+        # NEW fields
+        effectiveSum:
+          type: number
+          description: Sum after dropping highest/lowest scores
+        droppedJudgeIndices:
+          type: array
+          items:
+            type: integer
+          description: Indices of dropped judge scores
+        cumulativeScore:
+          type: number
+          description: Running total up to this dive
+        penaltyCode:
+          type: string
+        penaltyDeduction:
+          type: number
+        penaltyDescription:
+          type: string
+
+tags:
+  - name: Dives
+    description: Dive management operations
+  - name: Competitions
+    description: Competition management operations
+  - name: Athletes
+    description: Athlete management operations
+  - name: Analytics
+    description: Analytics and statistics endpoints

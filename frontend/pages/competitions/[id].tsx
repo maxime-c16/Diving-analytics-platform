@@ -47,8 +47,19 @@ import {
   type CompetitionData,
   type AthleteResult,
   type RoundData,
+  type JudgeStatsResult,
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { calculateEffectiveSum, getDroppedIndices } from "@/lib/scoring"
+import type { ExtendedAthleteResult, ExtendedDiveResult, ExtendedRoundData } from "@/lib/types"
+import { EditDiveModal, DeleteConfirmDialog, AthleteGrid, JudgeScoreCell } from "@/components/competition"
+import { 
+  AthleteProgressionChart,
+  JudgeConsistencyChart,
+  ScoreDistributionChart,
+  RoundComparisonRadar,
+  DifficultyScoreScatter
+} from "@/components/charts"
 
 const statusConfig: Record<IStatus, { icon: React.ReactNode; color: string; bgColor: string; label: string }> = {
   pending: { icon: <Clock className="h-5 w-5" />, color: "text-yellow-500", bgColor: "bg-yellow-500/10", label: "Pending" },
@@ -63,12 +74,21 @@ export default function CompetitionDetailPage() {
   const { id } = router.query
   const [log, setLog] = useState<IngestionLog | null>(null)
   const [competitionData, setCompetitionData] = useState<CompetitionData | null>(null)
+  const [judgeStats, setJudgeStats] = useState<JudgeStatsResult | null>(null)
   const [errors, setErrors] = useState<RowError[]>([])
   const [loading, setLoading] = useState(true)
   const [retrying, setRetrying] = useState(false)
   const [expandedAthlete, setExpandedAthlete] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState("standings")
   const [selectedEvent, setSelectedEvent] = useState<string>("all") // "all" or specific event name
+  
+  // CRUD modals state
+  const [editDiveId, setEditDiveId] = useState<number | null>(null)
+  const [deleteDiveId, setDeleteDiveId] = useState<number | null>(null)
+  const [showDeleteCompetition, setShowDeleteCompetition] = useState(false)
+  
+  // Keyboard navigation state
+  const [focusedAthleteIndex, setFocusedAthleteIndex] = useState<number>(-1)
 
   const fetchData = useCallback(async () => {
     if (!id || typeof id !== "string") return
@@ -84,8 +104,12 @@ export default function CompetitionDetailPage() {
       // Fetch competition data for completed or partial imports (partial = some dives imported successfully)
       if ((logData.status === "completed" || logData.status === "partial") && logData.competitionId) {
         try {
-          const compData = await api.getCompetitionData(id)
+          const [compData, judgeStatsData] = await Promise.all([
+            api.getCompetitionData(id),
+            api.getJudgeStats(id).catch(() => null), // Optional, don't fail if unavailable
+          ]);
           setCompetitionData(compData)
+          setJudgeStats(judgeStatsData)
         } catch (err) {
           console.error("Failed to fetch competition data", err)
         }
@@ -174,6 +198,318 @@ export default function CompetitionDetailPage() {
     }
   }, [competitionData, selectedEvent])
 
+  // Convert AthleteResult to ExtendedAthleteResult for new components
+  const extendedAthletes = useMemo((): ExtendedAthleteResult[] => {
+    if (!currentData?.athletes) return []
+    return currentData.athletes.map((athlete) => ({
+      ...athlete,
+      dives: athlete.dives.map((dive) => ({
+        ...dive,
+        penaltyCode: undefined,
+        penaltyDescription: undefined,
+      })) as ExtendedDiveResult[],
+    }))
+  }, [currentData])
+
+  // Keyboard navigation: J/K for athletes, E for edit, Escape to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return
+      }
+
+      // Skip if a modal is open
+      if (editDiveId !== null || deleteDiveId !== null || showDeleteCompetition) {
+        if (e.key === 'Escape') {
+          // Close any open modal
+          setEditDiveId(null)
+          setDeleteDiveId(null)
+          setShowDeleteCompetition(false)
+        }
+        return
+      }
+
+      const athleteCount = extendedAthletes.length
+      if (athleteCount === 0) return
+
+      switch (e.key.toLowerCase()) {
+        case 'j':
+          // Move to next athlete
+          e.preventDefault()
+          setFocusedAthleteIndex((prev) => {
+            const next = prev < athleteCount - 1 ? prev + 1 : 0
+            // Scroll focused athlete into view
+            setTimeout(() => {
+              const el = document.querySelector(`[data-athlete-index="${next}"]`)
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }, 0)
+            return next
+          })
+          break
+        case 'k':
+          // Move to previous athlete
+          e.preventDefault()
+          setFocusedAthleteIndex((prev) => {
+            const next = prev > 0 ? prev - 1 : athleteCount - 1
+            // Scroll focused athlete into view
+            setTimeout(() => {
+              const el = document.querySelector(`[data-athlete-index="${next}"]`)
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }, 0)
+            return next
+          })
+          break
+        case 'e':
+          // Edit first dive of focused athlete
+          if (focusedAthleteIndex >= 0 && focusedAthleteIndex < athleteCount) {
+            e.preventDefault()
+            const athlete = extendedAthletes[focusedAthleteIndex]
+            if (athlete.dives.length > 0) {
+              setEditDiveId(athlete.dives[0].id)
+            }
+          }
+          break
+        case 'escape':
+          // Clear focus
+          setFocusedAthleteIndex(-1)
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [extendedAthletes, focusedAthleteIndex, editDiveId, deleteDiveId, showDeleteCompetition])
+
+  // Get all dives for chart components
+  const allDives = useMemo(() => {
+    return extendedAthletes.flatMap((a) => a.dives)
+  }, [extendedAthletes])
+
+  // Get all scores for distribution chart
+  const allScores = useMemo(() => {
+    return allDives.map((d) => d.finalScore).filter((s): s is number => s !== null && s !== undefined)
+  }, [allDives])
+
+  // Convert rounds to ExtendedRoundData
+  const extendedRounds = useMemo((): ExtendedRoundData[] => {
+    if (!currentData?.rounds) return []
+    return currentData.rounds.map((round) => {
+      const scores = round.dives.map((d) => d.finalScore).filter((s): s is number => s !== null && s !== undefined)
+      const sortedScores = [...scores].sort((a, b) => a - b)
+      const median = sortedScores.length > 0 
+        ? sortedScores.length % 2 === 0 
+          ? (sortedScores[sortedScores.length / 2 - 1] + sortedScores[sortedScores.length / 2]) / 2
+          : sortedScores[Math.floor(sortedScores.length / 2)]
+        : 0
+      const mean = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
+      const variance = scores.length > 0 
+        ? scores.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scores.length
+        : 0
+      
+      return {
+        ...round,
+        lowestScore: Math.min(...scores) || 0,
+        medianScore: median,
+        stdDeviation: Math.sqrt(variance),
+      }
+    })
+  }, [currentData])
+
+  // Find dive for edit modal
+  const editDive = useMemo(() => {
+    if (!editDiveId) return null
+    return allDives.find((d) => d.id === editDiveId) || null
+  }, [editDiveId, allDives])
+
+  // Optimistic update handler for dive edits - updates local state immediately
+  const handleDiveSaved = useCallback((updatedDive: ExtendedDiveResult) => {
+    setCompetitionData((prev) => {
+      if (!prev) return prev
+      
+      // Helper to update dive in athlete's dives array
+      const updateAthleteDives = (athletes: AthleteResult[]): AthleteResult[] => {
+        return athletes.map((athlete) => ({
+          ...athlete,
+          dives: athlete.dives.map((dive) =>
+            dive.id === updatedDive.id
+              ? { ...dive, ...updatedDive }
+              : dive
+          ),
+          // Recalculate athlete's total score
+          totalScore: athlete.dives.reduce((sum, dive) => {
+            const score = dive.id === updatedDive.id ? updatedDive.finalScore : dive.finalScore
+            return sum + (score ?? 0)
+          }, 0),
+        }))
+      }
+
+      // Update rounds array if it exists
+      const updateRounds = (rounds: RoundData[]): RoundData[] => {
+        return rounds.map((round) => ({
+          ...round,
+          dives: round.dives.map((dive) =>
+            dive.id === updatedDive.id
+              ? { ...dive, ...updatedDive }
+              : dive
+          ),
+        }))
+      }
+
+      // Update main athletes and rounds
+      const updatedAthletes = updateAthleteDives(prev.athletes)
+      const updatedRounds = updateRounds(prev.rounds || [])
+
+      // Update events if they exist
+      const updatedEvents = prev.events
+        ? Object.fromEntries(
+            Object.entries(prev.events).map(([eventName, eventData]) => [
+              eventName,
+              {
+                ...eventData,
+                athletes: updateAthleteDives(eventData.athletes),
+                rounds: updateRounds(eventData.rounds || []),
+              },
+            ])
+          )
+        : undefined
+
+      return {
+        ...prev,
+        athletes: updatedAthletes,
+        rounds: updatedRounds,
+        events: updatedEvents,
+      }
+    })
+    setEditDiveId(null)
+  }, [])
+
+  // Optimistic delete handler for dives - removes dive from local state immediately
+  const handleDiveDeleted = useCallback((deletedDiveId: number) => {
+    setCompetitionData((prev) => {
+      if (!prev) return prev
+
+      // Helper to remove dive from athlete's dives array and recalculate total
+      const removeFromAthletes = (athletes: AthleteResult[]): AthleteResult[] => {
+        return athletes.map((athlete) => {
+          const filteredDives = athlete.dives.filter((dive) => dive.id !== deletedDiveId)
+          return {
+            ...athlete,
+            dives: filteredDives,
+            totalScore: filteredDives.reduce((sum, dive) => sum + (dive.finalScore ?? 0), 0),
+          }
+        })
+      }
+
+      // Helper to remove dive from rounds
+      const removeFromRounds = (rounds: RoundData[]): RoundData[] => {
+        return rounds.map((round) => ({
+          ...round,
+          dives: round.dives.filter((dive) => dive.id !== deletedDiveId),
+        }))
+      }
+
+      // Update main arrays
+      const updatedAthletes = removeFromAthletes(prev.athletes)
+      const updatedRounds = removeFromRounds(prev.rounds || [])
+
+      // Update events if they exist
+      const updatedEvents = prev.events
+        ? Object.fromEntries(
+            Object.entries(prev.events).map(([eventName, eventData]) => [
+              eventName,
+              {
+                ...eventData,
+                athletes: removeFromAthletes(eventData.athletes),
+                rounds: removeFromRounds(eventData.rounds || []),
+              },
+            ])
+          )
+        : undefined
+
+      // Update statistics
+      const allRemainingDives = updatedAthletes.flatMap((a) => a.dives)
+      const updatedStatistics = {
+        ...prev.statistics,
+        totalDives: allRemainingDives.length,
+      }
+
+      return {
+        ...prev,
+        athletes: updatedAthletes,
+        rounds: updatedRounds,
+        events: updatedEvents,
+        statistics: updatedStatistics,
+      }
+    })
+    setDeleteDiveId(null)
+  }, [])
+
+  // CRUD handlers
+  const handleEditDive = useCallback((diveId: number) => {
+    setEditDiveId(diveId)
+  }, [])
+
+  const handleDeleteDive = useCallback((diveId: number) => {
+    setDeleteDiveId(diveId)
+  }, [])
+
+  // Handler for athlete name changes - updates all references in local state
+  const handleAthleteNameChange = useCallback((athleteId: number, newName: string) => {
+    setCompetitionData((prev) => {
+      if (!prev) return prev
+
+      // Helper to update athlete name in athletes array
+      const updateAthletes = (athletes: AthleteResult[]): AthleteResult[] => {
+        return athletes.map((athlete) =>
+          athlete.athlete.id === athleteId
+            ? { ...athlete, athlete: { ...athlete.athlete, name: newName } }
+            : athlete
+        )
+      }
+
+      // Helper to update athlete name in rounds array
+      const updateRounds = (rounds: RoundData[]): RoundData[] => {
+        return rounds.map((round) => ({
+          ...round,
+          dives: round.dives.map((dive) =>
+            // Match by checking if the dive belongs to this athlete
+            // We need to find the athlete by ID in the main athletes array
+            prev.athletes.find(a => a.athlete.id === athleteId)?.dives.some(d => d.id === dive.id)
+              ? { ...dive, athleteName: newName }
+              : dive
+          ),
+        }))
+      }
+
+      // Update main arrays
+      const updatedAthletes = updateAthletes(prev.athletes)
+      const updatedRounds = updateRounds(prev.rounds || [])
+
+      // Update events if they exist
+      const updatedEvents = prev.events
+        ? Object.fromEntries(
+            Object.entries(prev.events).map(([eventName, eventData]) => [
+              eventName,
+              {
+                ...eventData,
+                athletes: updateAthletes(eventData.athletes),
+                rounds: updateRounds(eventData.rounds || []),
+              },
+            ])
+          )
+        : undefined
+
+      return {
+        ...prev,
+        athletes: updatedAthletes,
+        rounds: updatedRounds,
+        events: updatedEvents,
+      }
+    })
+  }, [])
+
   if (loading && !log) {
     return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="h-8 w-8 animate-spin text-primary" /></div>
   }
@@ -261,6 +597,18 @@ export default function CompetitionDetailPage() {
               <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
                 <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
               </Button>
+              {/* Delete competition button */}
+              {comp?.id && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowDeleteCompetition(true)}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
+              )}
             </div>
           </div>
 
@@ -337,113 +685,253 @@ export default function CompetitionDetailPage() {
                     <CardDescription>Competition rankings based on total score</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      {currentData?.athletes.map((athlete, idx) => (
-                        <motion.div key={athlete.athlete.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
-                          <div
-                            className={cn("flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors", expandedAthlete === athlete.athlete.id ? "bg-muted" : "hover:bg-muted/50", athlete.rank <= 3 && "border-l-4", athlete.rank === 1 && "border-l-yellow-500", athlete.rank === 2 && "border-l-gray-400", athlete.rank === 3 && "border-l-amber-600")}
-                            onClick={() => setExpandedAthlete(expandedAthlete === athlete.athlete.id ? null : athlete.athlete.id)}
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center font-bold", athlete.rank <= 3 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-                                {athlete.rank <= 3 ? <Medal className={cn("h-5 w-5", getMedalColor(athlete.rank))} /> : athlete.rank}
-                              </div>
-                              <div>
-                                <p className="font-semibold">{athlete.athlete.name}</p>
-                                <p className="text-sm text-muted-foreground">{athlete.athlete.country || "—"} • {athlete.diveCount} dives</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-6">
-                              <div className="text-right"><p className="text-2xl font-bold">{athlete.totalScore.toFixed(2)}</p><p className="text-xs text-muted-foreground">Total</p></div>
-                              <div className="text-right"><p className="text-lg font-medium text-muted-foreground">{athlete.averageScore.toFixed(2)}</p><p className="text-xs text-muted-foreground">Avg</p></div>
-                              {expandedAthlete === athlete.athlete.id ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
-                            </div>
-                          </div>
-                          <AnimatePresence>
-                            {expandedAthlete === athlete.athlete.id && (
-                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                                <div className="p-4 bg-muted/30 rounded-b-lg border border-t-0 space-y-2">
-                                  <p className="text-sm font-medium text-muted-foreground mb-3">Dive Breakdown</p>
-                                  <table className="w-full text-sm">
-                                    <thead>
-                                      <tr className="text-left text-muted-foreground text-xs">
-                                        <th className="w-12 p-1">Round</th>
-                                        <th className="w-20 p-1">Code</th>
-                                        <th className="w-16 p-1">DD</th>
-                                        <th className="p-1">Judges</th>
-                                        <th className="w-20 text-right p-1">Score</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {athlete.dives.map((dive) => (
-                                        <tr key={dive.id} className="bg-background rounded-md">
-                                          <td className="w-12 p-2 text-muted-foreground">R{dive.roundNumber ?? "?"}</td>
-                                          <td className="w-20 p-2 font-mono font-medium">{dive.diveCode ?? "—"}</td>
-                                          <td className="w-16 p-2 text-muted-foreground">{dive.difficulty ?? "—"}</td>
-                                          <td className="p-2 text-xs text-muted-foreground">{dive.judgeScores ? `[${dive.judgeScores.join(", ")}]` : "—"}</td>
-                                          <td className="w-20 p-2 text-right font-bold">{dive.finalScore?.toFixed(2) ?? "—"}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </motion.div>
-                      ))}
-                    </div>
+                    <AthleteGrid
+                      athletes={extendedAthletes}
+                      onEditDive={handleEditDive}
+                      onDeleteDive={handleDeleteDive}
+                      onAthleteNameChange={handleAthleteNameChange}
+                      showCrud={true}
+                      focusedIndex={focusedAthleteIndex}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="rounds" className="space-y-4">
-                {currentData?.rounds.map((round) => (
-                  <Card key={round.roundNumber}>
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <span>
-                          Round {round.roundNumber}
-                          {selectedEvent !== "all" && (
-                            <span className="text-sm font-normal text-muted-foreground ml-2">— {selectedEvent}</span>
-                          )}
-                        </span>
-                        <div className="flex items-center gap-4 text-sm font-normal text-muted-foreground">
-                          <span>{round.diveCount} dives</span>
-                          <span>Avg: {round.averageScore.toFixed(1)}</span>
-                          <span>Best: {round.highestScore.toFixed(1)}</span>
-                        </div>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead><tr className="border-b"><th className="text-left p-2">Rank</th><th className="text-left p-2">Athlete</th><th className="text-left p-2">Dive</th><th className="text-center p-2">DD</th><th className="text-center p-2">Judges</th><th className="text-right p-2">Score</th></tr></thead>
-                          <tbody>
-                            {[...round.dives].sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0)).map((dive, idx) => (
-                              <tr key={dive.id} className="border-b last:border-0 hover:bg-muted/50">
-                                <td className="p-2 font-medium w-12">{dive.rank ?? idx + 1}</td>
-                                <td className="p-2 w-48"><span className="font-medium">{dive.athleteName ?? "Unknown"}</span>{dive.athleteCountry && <span className="text-muted-foreground ml-2">({dive.athleteCountry})</span>}</td>
-                                <td className="p-2 font-mono w-20">{dive.diveCode ?? "—"}</td>
-                                <td className="p-2 text-center w-16">{dive.difficulty ?? "—"}</td>
-                                <td className="p-2 text-center text-xs text-muted-foreground">{dive.judgeScores?.join(", ") ?? "—"}</td>
-                                <td className="p-2 text-right font-bold w-20">{dive.finalScore?.toFixed(2) ?? "—"}</td>
+                {currentData?.rounds.map((round) => {
+                  // Find max judges for this round
+                  const maxJudges = Math.max(
+                    ...round.dives.map((d) => d.judgeScores?.length || 0),
+                    5
+                  );
+                  
+                  // Sort dives by score for this round and assign round-specific rankings
+                  const sortedDives = [...round.dives]
+                    .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0))
+                    .map((dive, idx) => ({
+                      ...dive,
+                      roundRank: idx + 1, // Round-specific rank (1st, 2nd, 3rd in THIS round)
+                    }));
+                  
+                  return (
+                    <Card key={round.roundNumber}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-primary" />
+                            Round {round.roundNumber}
+                            {selectedEvent !== "all" && (
+                              <span className="text-sm font-normal text-muted-foreground">— {selectedEvent}</span>
+                            )}
+                          </span>
+                          <div className="flex items-center gap-4 text-sm font-normal text-muted-foreground">
+                            <span>{round.diveCount} dives</span>
+                            <span>Avg: {round.averageScore.toFixed(1)}</span>
+                            <span className="text-green-600">Best: {round.highestScore.toFixed(1)}</span>
+                          </div>
+                        </CardTitle>
+                        <CardDescription>
+                          Rankings for this round only (not cumulative standings)
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse text-sm">
+                            <thead>
+                              <tr className="border-b text-xs text-muted-foreground">
+                                <th className="text-center py-2 px-2 w-14">
+                                  <span className="flex flex-col items-center">
+                                    <span>Round</span>
+                                    <span>Rank</span>
+                                  </span>
+                                </th>
+                                <th className="text-left py-2 px-2 min-w-[140px]">Athlete</th>
+                                <th className="text-left py-2 px-2 w-16">Dive</th>
+                                <th className="text-center py-2 px-1 w-10">DD</th>
+                                {/* Judge columns */}
+                                {Array.from({ length: maxJudges }).map((_, i) => (
+                                  <th key={i} className="text-center py-2 px-1 w-10">
+                                    J{i + 1}
+                                  </th>
+                                ))}
+                                <th className="text-center py-2 px-1 w-12">Sum</th>
+                                <th className="text-right py-2 px-2 w-16">Score</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                            </thead>
+                            <tbody>
+                              {sortedDives.map((dive) => {
+                                  const judgeScores = dive.judgeScores || [];
+                                  const droppedIndices = getDroppedIndices(judgeScores);
+                                  const effectiveSum = calculateEffectiveSum(judgeScores);
+                                  const roundRank = dive.roundRank;
+                                  
+                                  return (
+                                    <tr 
+                                      key={dive.id} 
+                                      className={cn(
+                                        "border-b last:border-0 transition-colors hover:bg-muted/30",
+                                        roundRank <= 3 && "bg-primary/5"
+                                      )}
+                                    >
+                                      {/* Round Rank */}
+                                      <td className="py-2 px-2 text-center">
+                                        <div className={cn(
+                                          "inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-sm",
+                                          roundRank === 1 && "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                                          roundRank === 2 && "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+                                          roundRank === 3 && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                                          roundRank > 3 && "text-muted-foreground"
+                                        )}>
+                                          {roundRank}
+                                        </div>
+                                      </td>
+                                      
+                                      {/* Athlete */}
+                                      <td className="py-2 px-2">
+                                        <span className="font-medium">{dive.athleteName ?? "Unknown"}</span>
+                                        {dive.athleteCountry && (
+                                          <span className="text-muted-foreground text-xs ml-1">
+                                            ({dive.athleteCountry})
+                                          </span>
+                                        )}
+                                      </td>
+                                      
+                                      {/* Dive Code */}
+                                      <td className="py-2 px-2 font-mono font-medium">
+                                        {dive.diveCode ?? "—"}
+                                      </td>
+                                      
+                                      {/* Difficulty */}
+                                      <td className="py-2 px-1 text-center text-muted-foreground">
+                                        {dive.difficulty?.toFixed(1) ?? "—"}
+                                      </td>
+                                      
+                                      {/* Judge Scores */}
+                                      {Array.from({ length: maxJudges }).map((_, judgeIndex) => {
+                                        const score = judgeScores[judgeIndex];
+                                        const isDropped = droppedIndices.includes(judgeIndex);
+                                        
+                                        return (
+                                          <td key={judgeIndex} className="py-2 px-1 text-center">
+                                            {score !== undefined ? (
+                                              <JudgeScoreCell 
+                                                score={score} 
+                                                isDropped={isDropped}
+                                                compact
+                                              />
+                                            ) : (
+                                              <span className="text-muted-foreground/30">—</span>
+                                            )}
+                                          </td>
+                                        );
+                                      })}
+                                      
+                                      {/* Effective Sum */}
+                                      <td className="py-2 px-1 text-center text-muted-foreground">
+                                        {effectiveSum.sum.toFixed(1)}
+                                      </td>
+                                      
+                                      {/* Final Score */}
+                                      <td className="py-2 px-2 text-right font-bold text-primary">
+                                        {dive.finalScore?.toFixed(2) ?? "—"}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </TabsContent>
 
               <TabsContent value="charts" className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <Card><CardHeader><CardTitle>Athlete Total Scores</CardTitle><CardDescription>Top 10 athletes</CardDescription></CardHeader><CardContent><div className="h-80"><ResponsiveContainer width="100%" height="100%"><BarChart data={athleteScoreData} layout="vertical"><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" /><YAxis type="category" dataKey="name" width={80} /><Tooltip /><Bar dataKey="total" fill="#3b82f6" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></div></CardContent></Card>
-                  <Card><CardHeader><CardTitle>Round Performance</CardTitle><CardDescription>Avg and highest by round</CardDescription></CardHeader><CardContent><div className="h-80"><ResponsiveContainer width="100%" height="100%"><LineChart data={roundData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="round" /><YAxis /><Tooltip /><Legend /><Line type="monotone" dataKey="average" stroke="#3b82f6" strokeWidth={2} name="Average" /><Line type="monotone" dataKey="highest" stroke="#10b981" strokeWidth={2} name="Highest" /></LineChart></ResponsiveContainer></div></CardContent></Card>
-                  <Card className="md:col-span-2"><CardHeader><CardTitle>Difficulty Distribution</CardTitle><CardDescription>Number of dives at each DD</CardDescription></CardHeader><CardContent><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={difficultyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="dd" /><YAxis /><Tooltip /><Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div></CardContent></Card>
+                {/* Enhanced Charts Section */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Athlete Score Progression */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Score Progression</CardTitle>
+                      <CardDescription>Cumulative scores by round</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <AthleteProgressionChart athletes={extendedAthletes} />
+                    </CardContent>
+                  </Card>
+
+                  {/* Judge Consistency Chart */}
+                  {judgeStats && judgeStats.judges && judgeStats.judges.length > 0 ? (
+                    <JudgeConsistencyChart judgeStats={judgeStats} />
+                  ) : (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Judge Consistency</CardTitle>
+                        <CardDescription>Mean and standard deviation by judge</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          {judgeStats ? "No judge score data available for this competition." : "Loading judge statistics..."}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Score Distribution */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Score Distribution</CardTitle>
+                      <CardDescription>Histogram of final dive scores</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ScoreDistributionChart dives={allDives} binSize={10} />
+                    </CardContent>
+                  </Card>
+
+                  {/* Round Comparison Radar */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Round Comparison</CardTitle>
+                      <CardDescription>Performance metrics by round</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <RoundComparisonRadar athletes={extendedAthletes} />
+                    </CardContent>
+                  </Card>
+
+                  {/* Difficulty vs Score Scatter */}
+                  <Card className="lg:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Difficulty vs Score</CardTitle>
+                      <CardDescription>Relationship between dive difficulty and final score</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <DifficultyScoreScatter dives={allDives} showTrendline />
+                    </CardContent>
+                  </Card>
                 </div>
+
+                {/* Legacy Charts - kept for reference */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Athlete Total Scores</CardTitle>
+                    <CardDescription>Top 10 athletes</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={athleteScoreData} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis type="category" dataKey="name" width={80} />
+                          <Tooltip />
+                          <Bar dataKey="total" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="details" className="space-y-4">
@@ -462,6 +950,38 @@ export default function CompetitionDetailPage() {
             <Card><CardContent className="py-12 text-center text-muted-foreground"><AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No competition data available</p></CardContent></Card>
           )}
         </div>
+
+        {/* Edit Dive Modal */}
+        <EditDiveModal
+          open={!!editDive}
+          dive={editDive}
+          onOpenChange={(open) => !open && setEditDiveId(null)}
+          onSave={handleDiveSaved}
+        />
+
+        {/* Delete Dive Confirmation Dialog */}
+        <DeleteConfirmDialog
+          open={!!deleteDiveId}
+          onOpenChange={(open) => !open && setDeleteDiveId(null)}
+          itemType="dive"
+          itemId={deleteDiveId || 0}
+          itemName={allDives.find((d) => d.id === deleteDiveId)?.diveCode}
+          onDelete={() => handleDiveDeleted(deleteDiveId!)}
+        />
+
+        {/* Delete Competition Confirmation Dialog */}
+        <DeleteConfirmDialog
+          open={showDeleteCompetition}
+          onOpenChange={setShowDeleteCompetition}
+          itemType="competition"
+          itemId={comp?.id || 0}
+          itemName={comp?.name}
+          cascadeWarning={`This will permanently delete all ${stats?.totalDives || 0} dives and ${stats?.totalAthletes || 0} athlete records associated with this competition.`}
+          onDelete={() => {
+            // Navigate back to competitions list after deletion
+            router.push('/competitions')
+          }}
+        />
       </main>
     </>
   )
