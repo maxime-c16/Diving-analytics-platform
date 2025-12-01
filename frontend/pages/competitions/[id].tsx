@@ -58,7 +58,8 @@ import {
   JudgeConsistencyChart,
   ScoreDistributionChart,
   RoundComparisonRadar,
-  DifficultyScoreScatter
+  DifficultyScoreScatter,
+  DiveCategoryComparator
 } from "@/components/charts"
 
 const statusConfig: Record<IStatus, { icon: React.ReactNode; color: string; bgColor: string; label: string }> = {
@@ -897,6 +898,17 @@ export default function CompetitionDetailPage() {
                     </CardHeader>
                     <CardContent>
                       <RoundComparisonRadar athletes={extendedAthletes} />
+                    </CardContent>
+                  </Card>
+
+                  {/* Dive Category Comparator */}
+                  <Card className="lg:col-span-2">
+                    <CardHeader>
+                      <CardTitle>Dive Category Analysis</CardTitle>
+                      <CardDescription>Compare performance across Forward, Back, Reverse, Inward, Twisting, and Armstand dives</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <DiveCategoryComparator athletes={extendedAthletes} />
                     </CardContent>
                   </Card>
 

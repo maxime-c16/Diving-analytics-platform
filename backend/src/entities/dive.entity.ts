@@ -26,7 +26,7 @@ export class Dive {
   @Column({ type: 'decimal', precision: 3, scale: 1 })
   difficulty: number;
 
-  @Column({ name: 'judge_scores', type: 'json', nullable: true })
+  @Column({ name: 'judge_scores', type: 'simple-json', nullable: true })
   judgeScores: number[];  // Standardized: camelCase 'judgeScores' across all layers
 
   @Column({ name: 'final_score', type: 'decimal', precision: 5, scale: 2, nullable: true })

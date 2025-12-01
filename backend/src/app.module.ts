@@ -19,7 +19,7 @@ import { IngestionLog } from "./entities/ingestion-log.entity";
       password: process.env.DB_PASSWORD || 'divepassword',
       database: process.env.DB_NAME || 'diving_db',
       entities: [Athlete, Competition, Dive, IngestionLog],
-      synchronize: true, // Auto-create tables
+      synchronize: false, // Disabled - use migrations instead to prevent data loss
       logging: process.env.NODE_ENV !== 'production',
       // Improve robustness for CI/local flaky DB connections
       retryAttempts: 10,

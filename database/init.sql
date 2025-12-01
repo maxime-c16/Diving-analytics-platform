@@ -30,10 +30,12 @@ CREATE TABLE IF NOT EXISTS dives (
     position VARCHAR(1), -- A, B, C, D
     height DECIMAL(3,1),
     difficulty DECIMAL(3,1) NOT NULL,
-    judges_scores JSON,
+    judge_scores TEXT,  -- JSON array stored as TEXT to match TypeORM simple-json
     final_score DECIMAL(5,2),
     `rank` INT,
     round_number INT DEFAULT 1,
+    cumulative_score DECIMAL(5,2),
+    event_name VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (athlete_id) REFERENCES athletes(id) ON DELETE SET NULL,
     FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE SET NULL,
