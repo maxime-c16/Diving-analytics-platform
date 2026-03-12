@@ -1,49 +1,54 @@
 ## Diving Analytics Platform
 
-End-to-end system for ingesting, computing, and analyzing competitive diving results.
+Competition intelligence for diving results, athlete profiles, club analysis, and dive-level scoring review.
 
-### Core Components
-- **Backend (NestJS)**: Scoring API, ingestion (CSV + PDF OCR), persistence (MariaDB).
-- **Worker (Python)**: PDF → OCR → structured dive extraction using Tesseract (`eng+fra`).
-- **Compute Engine (Python)**: Advanced analytics (statistics, judge consistency, predictions).
-- **Frontend (Next.js)**: Upcoming dashboard for exploration (Phase 5).
-- **Nginx**: Reverse proxy exposing unified `/api` namespace.
+### Application Stack
+- `apps/api`: Bun API with SQLite persistence
+- `apps/web`: Astro application shell with React views
+- `worker/extract_pdf.py`: PDF result extraction pipeline with retained OCR correction logic
 
-### Key Features
-- FINA-compliant score calculation (5 or 7 judges, auto DD lookup).
-- CSV ingestion with flexible headers and validation.
-- PDF OCR pipeline with dive code error correction (e.g. `52114` → `5211A`).
-- Automatic difficulty & final score computation when missing.
-- Confidence scoring for OCR extraction quality.
+This is the primary development path for the product. Local work does not require Docker.
 
-### Quick Start
+### Run The Platform
 ```bash
-docker compose up -d
-open http://localhost/api/docs
+bun install
+bun run dev:api
+bun run dev:web
 ```
 
-### Sample CSV Ingestion
+Endpoints:
+- Web: `http://localhost:4100`
+- API: `http://localhost:4101`
+
+### Core Workflows
+- Ingest a meet result sheet from `/upload`
+- Review competition, event, athlete, and club workspaces
+- Trace dive-level scoring, including dropped-note logic under official World Aquatics judging rules
+- Navigate between competition context, athlete profiles, and club profiles without losing focus state
+
+### API Example
 ```bash
-curl -X POST http://localhost/api/ingestion/upload/csv \
-	-F "file=@scripts/sample-competition.csv" \
-	-F "competitionName=Test Open 2025" \
-	-F "eventType=3m"
+curl -X POST http://localhost:4101/ingestions/pdf \
+  -F "file=@'20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf'"
 ```
 
-### Sample PDF Upload
+### Product Notes
+- The platform now runs as a single Bun API plus Astro web client for faster iteration.
+- SQLite is the default local datastore.
+- Result extraction prefers the PDF text layer first and uses the retained OCR correction path when needed.
+- Athlete and club identities are normalized during import and aggregation to reduce duplicate entities.
+- Competition dates are normalized to English for consistent sorting and display.
+
+### Validation Dataset
+The current application was exercised against:
+- `20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf`
+- `detailed results PSV MDC 2026.pdf`
+
+### Quality Checks
 ```bash
-curl -X POST http://localhost/api/ingestion/upload/pdf \
-	-F "file=@'20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf'" \
-	-F "eventType=3m"
+bun run check:web
+bun run smoke:web
 ```
 
-### Environment Variables (excerpt)
-- `WORKER_URL` (backend) → `http://worker-service:8080`
-- `API_BASE_URL` (worker) → `http://api-service:3000`
-
-### Roadmap (Excerpt)
-- ✅ Scoring, Analytics, Ingestion, OCR
-- 🔄 Dashboard UI
-- ⏳ Auth & Optimization
-
-See `API_DOCS.md` for complete endpoint reference.
+### Legacy Services
+The original `backend/`, `frontend/`, `compute-engine/`, `worker/`, and Docker assets remain in the repository for migration reference. They are no longer the recommended local development path on this branch.
