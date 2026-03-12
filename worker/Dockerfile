@@ -60,9 +60,9 @@ ENV PATH="/opt/venv/bin:$PATH" \
 # Switch to non-root user
 USER worker
 
-# Health check (ping Redis or check process)
+# Health check against the HTTP control plane the API actually uses
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import sys; sys.exit(0)"
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"
 
 # Run the worker
 CMD ["python", "worker.py"]

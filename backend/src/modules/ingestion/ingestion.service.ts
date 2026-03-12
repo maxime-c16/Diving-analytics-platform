@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import * as csvParser from 'csv-parser';
 import { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
@@ -62,6 +62,8 @@ interface ProcessedRow {
   eventName?: string;  // Event within competition (e.g., 'Elite - Dames - 3m')
 }
 
+type AthleteCache = Map<string, Athlete>;
+
 export interface RowError {
   row: number;
   error: string;
@@ -71,6 +73,10 @@ export interface RowError {
 @Injectable()
 export class IngestionService {
   private readonly logger = new Logger(IngestionService.name);
+
+  private getAthleteCacheKey(name: string, country?: string): string {
+    return `${name.trim().toLowerCase()}::${(country || '').trim().toLowerCase()}`;
+  }
 
   constructor(
     @InjectRepository(Athlete)
@@ -163,16 +169,17 @@ export class IngestionService {
 
       const errors: RowError[] = [];
       let processedCount = 0;
+      const athleteCache: AthleteCache = new Map();
 
       // Process each row
       for (let i = 0; i < rows.length; i++) {
         try {
           const processedRow = this.processRow(rows[i], height, i + 2); // +2 for header row and 0-indexing
-          await this.insertRow(processedRow, competition);
+          await this.insertRow(processedRow, competition, athleteCache);
           processedCount++;
           
-          // Update progress every 10 rows
-          if (processedCount % 10 === 0) {
+          // Update progress periodically without hammering the DB
+          if (processedCount % 50 === 0) {
             ingestionLog.processedRows = processedCount;
             await this.ingestionLogRepository.save(ingestionLog);
           }
@@ -335,11 +342,21 @@ export class IngestionService {
   /**
    * Insert processed row into database
    */
-  private async insertRow(row: ProcessedRow, competition: Competition): Promise<void> {
+  private async insertRow(
+    row: ProcessedRow,
+    competition: Competition,
+    athleteCache?: AthleteCache,
+  ): Promise<void> {
+    const cacheKey = this.getAthleteCacheKey(row.athleteName, row.country);
+
     // Find or create athlete
-    let athlete = await this.athleteRepository.findOne({
-      where: { name: row.athleteName },
-    });
+    let athlete = athleteCache?.get(cacheKey);
+
+    if (!athlete) {
+      athlete = await this.athleteRepository.findOne({
+        where: { name: row.athleteName },
+      });
+    }
 
     if (!athlete) {
       athlete = this.athleteRepository.create({
@@ -352,6 +369,8 @@ export class IngestionService {
       athlete.country = row.country;
       await this.athleteRepository.save(athlete);
     }
+
+    athleteCache?.set(cacheKey, athlete);
 
     // Get position from dive code
     const position = row.diveCode.slice(-1);
@@ -404,7 +423,14 @@ export class IngestionService {
     status?: IngestionStatus,
     limit = 20,
     offset = 0,
-  ): Promise<{ data: IngestionStatusDto[]; total: number }> {
+  ): Promise<{ data: Array<IngestionStatusDto & {
+    competitionName?: string;
+    location?: string;
+    eventType?: string;
+    athleteCount?: number;
+    diveCount?: number;
+    averageScore?: number;
+  }>; total: number }> {
     const queryBuilder = this.ingestionLogRepository.createQueryBuilder('log')
       .orderBy('log.created_at', 'DESC')
       .take(limit)
@@ -415,9 +441,55 @@ export class IngestionService {
     }
 
     const [logs, total] = await queryBuilder.getManyAndCount();
+    const competitionIds = Array.from(
+      new Set(logs.map((log) => log.competitionId).filter((id): id is number => typeof id === 'number')),
+    );
+
+    const competitions = competitionIds.length > 0
+      ? await this.competitionRepository.findBy({ id: In(competitionIds) })
+      : [];
+
+    const competitionsById = new Map(competitions.map((competition) => [competition.id, competition]));
+
+    const diveStats = competitionIds.length > 0
+      ? await this.diveRepository
+          .createQueryBuilder('dive')
+          .select('dive.competition_id', 'competitionId')
+          .addSelect('COUNT(*)', 'diveCount')
+          .addSelect('COUNT(DISTINCT dive.athlete_id)', 'athleteCount')
+          .addSelect('AVG(dive.final_score)', 'averageScore')
+          .where('dive.competition_id IN (:...competitionIds)', { competitionIds })
+          .groupBy('dive.competition_id')
+          .getRawMany()
+      : [];
+
+    const diveStatsByCompetitionId = new Map(
+      diveStats.map((row) => [
+        Number(row.competitionId),
+        {
+          diveCount: Number(row.diveCount),
+          athleteCount: Number(row.athleteCount),
+          averageScore: row.averageScore === null ? undefined : Number(row.averageScore),
+        },
+      ]),
+    );
 
     return {
-      data: logs.map((log) => this.mapToStatusDto(log)),
+      data: logs.map((log) => {
+        const base = this.mapToStatusDto(log);
+        const competition = log.competitionId ? competitionsById.get(log.competitionId) : undefined;
+        const stats = log.competitionId ? diveStatsByCompetitionId.get(log.competitionId) : undefined;
+
+        return {
+          ...base,
+          competitionName: competition?.name,
+          location: competition?.location,
+          eventType: competition?.eventType,
+          athleteCount: stats?.athleteCount,
+          diveCount: stats?.diveCount,
+          averageScore: stats?.averageScore,
+        };
+      }),
       total,
     };
   }
@@ -507,13 +579,14 @@ export class IngestionService {
 
     const errors: RowError[] = [];
     let processedCount = 0;
+    const athleteCache: AthleteCache = new Map();
 
     // Process each extracted dive
     for (let i = 0; i < dives.length; i++) {
       try {
         const dive = dives[i];
         const processedRow = this.processPdfDive(dive, height, i + 1);
-        await this.insertRow(processedRow, competition);
+        await this.insertRow(processedRow, competition, athleteCache);
         processedCount++;
       } catch (error) {
         const errorMsg = error.message || String(error);

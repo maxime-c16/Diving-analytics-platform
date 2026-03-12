@@ -1,23 +1,20 @@
 # ============================================
-# DEPENDENCIES STAGE - Install dependencies
+# DEPENDENCIES STAGE - Install dependencies with Bun
 # ============================================
-FROM node:18-alpine AS deps
-
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine
-RUN apk add --no-cache libc6-compat
+FROM oven/bun:1 AS deps
 
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json bun.lock ./
 
 # Install dependencies
-RUN npm ci --prefer-offline --no-audit
+RUN bun install --frozen-lockfile
 
 # ============================================
 # BUILD STAGE - Build the Next.js application
 # ============================================
-FROM node:18-alpine AS builder
+FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
@@ -32,7 +29,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # Build Next.js application with standalone output
-RUN npm run build
+RUN bun run build
 
 # ============================================
 # PRODUCTION STAGE - Minimal runtime image

@@ -5,6 +5,8 @@ import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const host = process.env.HOST || '0.0.0.0';
+  const port = parseInt(process.env.PORT || '3000', 10);
   // Set global prefix for all routes
   app.setGlobalPrefix('v1');
 
@@ -45,8 +47,8 @@ async function bootstrap() {
     },
   });
 
-  await app.listen(3000);
-  console.log(`Application is running on: http://localhost:3000`);
-  console.log(`Swagger documentation: http://localhost:3000/api/docs`);
+  await app.listen(port, host);
+  console.log(`Application is running on: http://${host}:${port}`);
+  console.log(`Swagger documentation: http://${host}:${port}/docs`);
 }
 bootstrap();

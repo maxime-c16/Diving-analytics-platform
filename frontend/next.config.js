@@ -23,7 +23,8 @@ const nextConfig = {
   
   // Environment variables available to the client
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost/api',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
+    NEXT_PUBLIC_COMPUTE_URL: process.env.NEXT_PUBLIC_COMPUTE_URL || '/compute',
   },
 }
 

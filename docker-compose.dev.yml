@@ -1,0 +1,99 @@
+services:
+  mariadb:
+    image: mysql:8.4
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: diving_db
+      MYSQL_USER: diver
+      MYSQL_PASSWORD: divepassword
+    volumes:
+      - mysql_dev_data_v2:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-connections=200
+      - --innodb-buffer-pool-size=256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6380:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes
+    volumes:
+      - redis_dev_data_v2:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  compute-service:
+    profiles: ["compute"]
+    build:
+      context: ./compute-engine
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "5101:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FLASK_ENV=development
+    volumes:
+      - ./compute-engine:/app
+    command: ["python", "main.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker-service:
+    profiles: ["ocr"]
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "8180:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379/0
+      - API_BASE_URL=http://host.docker.internal:3101
+    volumes:
+      - ./worker:/app
+    command: ["python", "worker.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  mysql_dev_data_v2:
+    driver: local
+  redis_dev_data_v2:
+    driver: local

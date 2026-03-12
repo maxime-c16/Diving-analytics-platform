@@ -1,28 +1,31 @@
 # ============================================
-# BUILD STAGE - Install dependencies and build
+# DEPENDENCIES STAGE - Install dependencies with Bun
 # ============================================
-FROM node:18-alpine AS builder
+FROM oven/bun:1 AS deps
 
-# Set working directory
 WORKDIR /app
 
-# Install build dependencies (if needed for native modules)
-# RUN apk add --no-cache python3 make g++
-
 # Copy package files for dependency installation
-COPY package*.json ./
+COPY package.json bun.lock ./
 
-# Install ALL dependencies (including devDependencies for build)
-RUN npm ci --prefer-offline --no-audit
+# Install all dependencies, including devDependencies required to build
+RUN bun install --frozen-lockfile
 
-# Copy source code
+# ============================================
+# BUILD STAGE - Build the application
+# ============================================
+FROM oven/bun:1 AS builder
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN bun run build
 
-# Remove devDependencies after build
-RUN npm prune --production
+# Remove devDependencies after build while keeping runtime modules
+RUN rm -rf node_modules && bun install --frozen-lockfile --production
 
 # ============================================
 # PRODUCTION STAGE - Minimal runtime image
@@ -55,4 +58,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start the application
-CMD ["node", "dist/src/main"]
+CMD ["node", "dist/main"]

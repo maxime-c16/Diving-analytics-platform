@@ -3,8 +3,10 @@
 # ============================================
 
 # Docker Compose files
-COMPOSE = docker compose -f docker-compose.yml
-COMPOSE_OPT = docker compose -f docker-compose.optimized.yml
+DOCKER_COMPOSE_BIN := $(shell if command -v docker-compose >/dev/null 2>&1; then echo docker-compose; else echo "docker compose"; fi)
+COMPOSE = $(DOCKER_COMPOSE_BIN) -f docker-compose.yml
+COMPOSE_OPT = $(DOCKER_COMPOSE_BIN) -f docker-compose.optimized.yml
+COMPOSE_DEV = $(DOCKER_COMPOSE_BIN) -p diving-analytics-dev -f docker-compose.dev.yml
 
 # Enable BuildKit for better performance
 export DOCKER_BUILDKIT=1
@@ -169,8 +171,46 @@ clean-images: ## Remove all custom images
 # DEVELOPMENT
 # ============================================
 .PHONY: dev
-dev: ## Start services in development mode with live reload
-	$(COMPOSE) up
+dev: dev-infra ## Start development infra only
+
+.PHONY: dev-infra
+dev-infra: dev-infra-core dev-infra-ocr ## Start core dev infra plus OCR worker
+
+.PHONY: dev-infra-core
+dev-infra-core: ## Start only the core dev infra needed for local API/UI work
+	$(COMPOSE_DEV) up -d mariadb redis
+
+.PHONY: dev-infra-ocr
+dev-infra-ocr: ## Start the OCR worker on top of core infra
+	$(COMPOSE_DEV) --profile ocr up -d worker-service
+
+.PHONY: dev-infra-compute
+dev-infra-compute: ## Start the optional analytics/compute service
+	$(COMPOSE_DEV) --profile compute up -d compute-service
+
+.PHONY: dev-infra-down
+dev-infra-down: ## Stop dev infra
+	$(COMPOSE_DEV) down --remove-orphans
+
+.PHONY: dev-reset
+dev-reset: ## Remove dev infra containers and volumes for a clean restart
+	$(COMPOSE_DEV) down -v --remove-orphans
+
+.PHONY: dev-infra-logs
+dev-infra-logs: ## Follow dev infra logs
+	$(COMPOSE_DEV) logs -f
+
+.PHONY: dev-backend
+dev-backend: ## Run backend locally with watch mode against dev infra
+	./scripts/dev-backend.sh
+
+.PHONY: dev-frontend
+dev-frontend: ## Run frontend locally with LAN-friendly hot reload
+	./scripts/dev-frontend.sh
+
+.PHONY: dev-status
+dev-status: ## Show status of dev infra containers
+	$(COMPOSE_DEV) ps
 
 .PHONY: shell-backend
 shell-backend: ## Open shell in backend container

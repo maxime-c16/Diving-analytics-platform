@@ -1,5 +1,5 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost/api';
-const COMPUTE_API = process.env.NEXT_PUBLIC_COMPUTE_URL || 'http://localhost:5001';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+const COMPUTE_API = process.env.NEXT_PUBLIC_COMPUTE_URL || '/compute';
 
 export type DivingHeight = '1m' | '3m' | '5m' | '7.5m' | '10m';
 
@@ -338,6 +338,12 @@ export interface IngestionLog {
   completedAt?: string;
   competitionId?: number;
   confidence?: number;  // OCR extraction confidence score (0.0 - 1.0)
+  competitionName?: string;
+  location?: string;
+  eventType?: string;
+  athleteCount?: number;
+  diveCount?: number;
+  averageScore?: number;
 }
 
 export interface RowError {

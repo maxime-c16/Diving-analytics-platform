@@ -38,6 +38,7 @@ out/
 .next/
 .nuxt/
 .cache/
+.astro/
 
 # TypeScript
 *.tsbuildinfo
@@ -74,6 +75,9 @@ wheels/
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
+data/
 database/data/
 *.sql.backup
 

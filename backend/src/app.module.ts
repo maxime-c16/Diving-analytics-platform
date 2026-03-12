@@ -33,10 +33,6 @@ import { IngestionLog } from "./entities/ingestion-log.entity";
         connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '30000', 10),
         // Queue limit for waiting connection requests (0 = unlimited)
         queueLimit: 0,
-        // Acquire timeout - how long to wait for a connection from pool
-        acquireTimeout: 60000,
-        // Idle timeout - close connections idle longer than this (ms)
-        idleTimeout: 60000,
       },
     }),
     ScoresModule,

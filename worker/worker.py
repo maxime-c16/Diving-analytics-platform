@@ -3,6 +3,8 @@ Diving Analytics Worker Service
 Handles PDF OCR processing and text extraction for diving competition results.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import json
@@ -13,12 +15,33 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, asdict
 from io import BytesIO
 
-import redis
 import requests
-from celery import Celery
-from PIL import Image
-import pytesseract
-from pdf2image import convert_from_bytes, convert_from_path
+
+try:
+	import redis
+except ImportError:
+	redis = None
+
+try:
+	from celery import Celery
+except ImportError:
+	Celery = None
+
+try:
+	from PIL import Image
+except ImportError:
+	Image = None
+
+try:
+	import pytesseract
+except ImportError:
+	pytesseract = None
+
+try:
+	from pdf2image import convert_from_bytes, convert_from_path
+except ImportError:
+	convert_from_bytes = None
+	convert_from_path = None
 
 # Import OCR correction utilities
 from ocr_corrections import (
@@ -51,20 +74,32 @@ logger = logging.getLogger(__name__)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://api-service:3000')
 
-# Initialize Celery
-celery_app = Celery('diving_worker', broker=REDIS_URL, backend=REDIS_URL)
-celery_app.conf.update(
-	task_serializer='json',
-	accept_content=['json'],
-	result_serializer='json',
-	timezone='UTC',
-	enable_utc=True,
-	task_track_started=True,
-	task_time_limit=300,  # 5 minutes max per task
-)
+if Celery:
+	celery_app = Celery('diving_worker', broker=REDIS_URL, backend=REDIS_URL)
+	celery_app.conf.update(
+		task_serializer='json',
+		accept_content=['json'],
+		result_serializer='json',
+		timezone='UTC',
+		enable_utc=True,
+		task_track_started=True,
+		task_time_limit=300,  # 5 minutes max per task
+	)
+else:
+	celery_app = None
 
-# Initialize Redis client
-redis_client = redis.from_url(REDIS_URL)
+redis_client = redis.from_url(REDIS_URL) if redis else None
+
+
+def task_decorator(*args, **kwargs):
+	"""Use Celery when available, otherwise return the function unchanged."""
+	if celery_app:
+		return celery_app.task(*args, **kwargs)
+
+	def passthrough(func):
+		return func
+
+	return passthrough
 
 
 def normalize_athlete_name(name: str) -> str:
@@ -568,7 +603,7 @@ class DivingPDFParser:
 			all_dives.extend(ffn_dives)
 		
 		# Strategy 2: Parse French-style tabular format
-		if not ffn_dives:
+		if not ffn_dives and hasattr(self, '_parse_french_format'):
 			french_dives = self._parse_french_format(text)
 			all_dives.extend(french_dives)
 		
@@ -578,7 +613,7 @@ class DivingPDFParser:
 			all_dives.extend(standard_dives)
 		
 		# Strategy 4: Parse table structure (for scanned tables)
-		if len(all_dives) < 5:
+		if len(all_dives) < 5 and hasattr(self, '_parse_table_structure'):
 			table_dives = self._parse_table_structure(text)
 			# Only add if we found significantly more dives
 			if len(table_dives) > len(all_dives):
@@ -1511,6 +1546,12 @@ class PDFOCRProcessor:
 				progress_callback(phase, current, total, message)
 		
 		try:
+			if not convert_from_bytes or not pytesseract:
+				return ExtractionResult(
+					success=False,
+					errors=["OCR dependencies are not installed on this host"]
+				)
+
 			start_time = time.time()
 			
 			# Convert PDF to images
@@ -1602,7 +1643,7 @@ class PDFOCRProcessor:
 				errors=[f"Failed to read PDF file: {str(e)}"]
 			)
 	
-	def _preprocess_image(self, image: Image.Image) -> Image.Image:
+	def _preprocess_image(self, image):
 		"""Preprocess image to improve OCR accuracy"""
 		# Skip preprocessing for now - it seems to cause more OCR errors than it fixes
 		# The unprocessed images are producing more accurate results
@@ -1626,7 +1667,7 @@ class PDFOCRProcessor:
 
 
 # Celery Tasks
-@celery_app.task(bind=True, name='process_pdf')
+@task_decorator(bind=True, name='process_pdf')
 def process_pdf_task(self, job_id: str, pdf_bytes_b64: str, metadata: dict):
 	"""Celery task to process PDF and extract diving data"""
 	import base64
@@ -1705,6 +1746,9 @@ def process_pdf_task(self, job_id: str, pdf_bytes_b64: str, metadata: dict):
 
 def update_job_status(job_id: str, status: str, data: dict):
 	"""Update job status in Redis"""
+	if not redis_client:
+		logger.warning("Redis unavailable, skipping job status update for %s", job_id)
+		return
 	try:
 		redis_client.hset(f"pdf_job:{job_id}", mapping={
 			'status': status,
@@ -1716,8 +1760,25 @@ def update_job_status(job_id: str, status: str, data: dict):
 		logger.error(f"Failed to update job status: {e}")
 
 
+def merge_job_data(job_id: str, patch: dict) -> bool:
+	"""Merge a partial update into an existing Redis-backed job payload."""
+	try:
+		current = get_job_status(job_id)
+		if not current:
+			return False
+		data = current.get('data', {})
+		data.update(patch)
+		update_job_status(job_id, current.get('status', 'unknown'), data)
+		return True
+	except Exception as e:
+		logger.error(f"Failed to merge job data: {e}")
+		return False
+
+
 def get_job_status(job_id: str) -> Optional[dict]:
 	"""Get job status from Redis"""
+	if not redis_client:
+		return None
 	try:
 		result = redis_client.hgetall(f"pdf_job:{job_id}")
 		if result:
@@ -1952,12 +2013,11 @@ class OCRHandler(BaseHTTPRequestHandler):
 					data = json.loads(body)
 					
 					# Update the stored job data with new dives
-					if job_id in job_results:
-						if 'dives' in data:
-							job_results[job_id]['data']['dives'] = data['dives']
-							job_results[job_id]['data']['dives_count'] = len(data['dives'])
-							logger.info(f"Updated job {job_id} with {len(data['dives'])} dives")
-						
+					if 'dives' in data and merge_job_data(job_id, {
+						'dives': data['dives'],
+						'dive_count': len(data['dives']),
+					}):
+						logger.info(f"Updated job {job_id} with {len(data['dives'])} dives")
 						self.send_response(200)
 						self.send_header('Content-Type', 'application/json')
 						self.end_headers()
@@ -2002,6 +2062,8 @@ def main():
 	
 	# Test Tesseract availability
 	try:
+		if not pytesseract:
+			raise RuntimeError("pytesseract is not installed")
 		version = pytesseract.get_tesseract_version()
 		logger.info(f"Tesseract version: {version}")
 	except Exception as e:
@@ -2012,6 +2074,10 @@ def main():
 	http_thread.start()
 	
 	# Run Celery worker
+	if not celery_app:
+		logger.warning("Celery not installed; HTTP OCR server running without queue worker")
+		http_thread.join()
+		return
 	logger.info("Starting Celery worker...")
 	celery_app.worker_main(['worker', '-l', 'INFO', '-c', '2'])
 

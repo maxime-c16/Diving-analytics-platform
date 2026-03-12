@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Loader2, AlertCircle, Upload, RefreshCw } from 'lucide-react';
 import { CompetitionCard } from './competition-card';
 import { Button, Card, CardContent } from '@/components/ui';
@@ -43,48 +43,24 @@ export function RecentCompetitions({
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
-  const fetchCompetitions = async () => {
+  const fetchCompetitions = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await api.getIngestionLogs({ status, limit, offset: 0 });
-      
-      // Enrich with competition data for completed imports
-      const enriched = await Promise.all(
-        response.data.map(async (log) => {
-          if (log.status === 'completed' && log.competitionId) {
-            try {
-              const data = await api.getCompetitionData(log.id);
-              return {
-                ...log,
-                competitionName: data.competition.name,
-                location: data.competition.location,
-                eventType: data.competition.eventType,
-                athleteCount: data.statistics.totalAthletes,
-                diveCount: data.statistics.totalDives,
-                averageScore: data.statistics.averageScore,
-              };
-            } catch {
-              // Fall back to basic log data
-              return log;
-            }
-          }
-          return log;
-        })
-      );
-      
-      setCompetitions(enriched);
+
+      setCompetitions(response.data as EnrichedCompetition[]);
       setTotal(response.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load competitions');
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit, status]);
 
   useEffect(() => {
     fetchCompetitions();
-  }, [limit, status]);
+  }, [fetchCompetitions]);
 
   if (loading) {
     return (
