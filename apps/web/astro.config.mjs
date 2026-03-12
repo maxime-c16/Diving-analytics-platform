@@ -11,6 +11,13 @@ export default defineConfig({
     define: {
       "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "development"),
     },
+    optimizeDeps: {
+      esbuildOptions: {
+        define: {
+          "process.env.NODE_ENV": JSON.stringify("development"),
+        },
+      },
+    },
     server: {
       host: true,
       port: 4100,

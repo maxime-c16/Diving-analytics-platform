@@ -15,6 +15,25 @@ type ImportResult = {
       totalEvents: number;
       events: string[];
     };
+    method?: string;
+  };
+  review: {
+    warnings: string[];
+    quality: {
+      confidence: number;
+      extractionMethod: string;
+      rawTextLength: number;
+      entryCount: number;
+      athleteCount: number;
+      diveCount: number;
+      divesWithoutScores: number;
+    };
+    eventCoverage: Array<{
+      eventName: string;
+      entryCount: number;
+      diveCount: number;
+      missingScores: number;
+    }>;
   };
 };
 
@@ -108,6 +127,41 @@ export function UploadPanel() {
           </section>
 
           <section className="panel">
+            <div className="section-head">
+              <h2>Intake review</h2>
+              <span className="muted">
+                Confidence {(result.review.quality.confidence * 100).toFixed(0)}% · {result.review.quality.extractionMethod}
+              </span>
+            </div>
+            {result.review.warnings.length > 0 ? (
+              <div className="notice notice-warning">
+                <strong>Review recommended</strong>
+                <ul className="plain-list">
+                  {result.review.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="notice notice-success">No parsing warnings were detected for this intake.</div>
+            )}
+            <div className="metrics">
+              <div className="metric">
+                <span>Entries</span>
+                <strong>{result.review.quality.entryCount}</strong>
+              </div>
+              <div className="metric">
+                <span>Missing scores</span>
+                <strong>{result.review.quality.divesWithoutScores}</strong>
+              </div>
+              <div className="metric">
+                <span>Text payload</span>
+                <strong>{result.review.quality.rawTextLength}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
             <h2>Imported event program</h2>
             <div className="cluster">
               {result.extraction.summary.events.map((eventName) => (
@@ -116,6 +170,28 @@ export function UploadPanel() {
                 </span>
               ))}
             </div>
+            <table className="table" style={{ marginTop: 16 }}>
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Entries</th>
+                  <th>Dives</th>
+                  <th>Missing scores</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.review.eventCoverage.map((event) => (
+                  <tr key={event.eventName}>
+                    <td>
+                      <strong>{event.eventName}</strong>
+                    </td>
+                    <td>{event.entryCount}</td>
+                    <td>{event.diveCount}</td>
+                    <td>{event.missingScores}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             <div className="toolbar" style={{ marginTop: 16 }}>
               <a className="button secondary" href={`/competitions?id=${result.competitionId}`}>
                 Open competition workspace

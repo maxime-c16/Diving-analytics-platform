@@ -1,6 +1,11 @@
 ---
+export const prerender = false;
+
 import { ClubDirectoryView } from "../components/ClubDirectoryView";
 import AppLayout from "../layouts/AppLayout.astro";
+
+const response = await fetch("http://127.0.0.1:4101/clubs");
+const initialClubs = response.ok ? await response.json() : [];
 ---
 
 <AppLayout
@@ -8,5 +13,5 @@ import AppLayout from "../layouts/AppLayout.astro";
   description="Review club rosters, recent competition presence, event-family coverage, and direct navigation into athlete and competition contexts."
   pathname="/clubs"
 >
-  <ClubDirectoryView client:load />
+  <ClubDirectoryView client:load initialList={initialClubs} />
 </AppLayout>

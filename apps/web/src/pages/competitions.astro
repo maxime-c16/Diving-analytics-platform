@@ -1,6 +1,17 @@
 ---
+export const prerender = false;
+
 import { CompetitionsView } from "../components/CompetitionsView";
 import AppLayout from "../layouts/AppLayout.astro";
+
+const competitionsResponse = await fetch("http://127.0.0.1:4101/competitions");
+const initialCompetitions = competitionsResponse.ok ? await competitionsResponse.json() : [];
+const competitionId = Astro.url.searchParams.get("id");
+const initialDetail = competitionId
+  ? await fetch(`http://127.0.0.1:4101/competitions/${competitionId}`).then((response) =>
+      response.ok ? response.json() : null,
+    )
+  : null;
 ---
 
 <AppLayout
@@ -8,5 +19,5 @@ import AppLayout from "../layouts/AppLayout.astro";
   description="Open a competition workspace, move event by event, and review rankings, athlete focus, pair analysis, and the full scoring ledger."
   pathname="/competitions"
 >
-  <CompetitionsView client:load />
+  <CompetitionsView client:load initialDetail={initialDetail} initialList={initialCompetitions} />
 </AppLayout>

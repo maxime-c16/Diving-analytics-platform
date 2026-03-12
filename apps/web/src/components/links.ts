@@ -23,6 +23,7 @@ export function competitionFocusHref(input: {
   entryId?: number | string | null;
   diveId?: number | string | null;
   view?: string | null;
+  clubName?: string | null;
 }) {
   const params = new URLSearchParams();
   params.set("id", String(input.competitionId));
@@ -37,6 +38,9 @@ export function competitionFocusHref(input: {
   }
   if (input.view) {
     params.set("view", input.view);
+  }
+  if (input.clubName) {
+    params.set("club", input.clubName);
   }
   return `/competitions?${params.toString()}`;
 }

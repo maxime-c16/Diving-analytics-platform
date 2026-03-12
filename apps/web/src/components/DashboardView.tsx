@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchJson, getApiBaseUrl } from "./api";
 import { athleteProfileHref } from "./links";
+import { SortableHeader } from "./SortableHeader";
+import { nextSortDirection, parseCompetitionDate, type SortDirection } from "./tableSorting";
 
 type DashboardData = {
   overview: {
@@ -26,6 +28,11 @@ type DashboardData = {
   }>;
 };
 
+type CompetitionSortKey = "competition" | "date" | "dives" | "winningTotal";
+type DashboardViewProps = {
+  initialData?: DashboardData;
+};
+
 function rankGlyph(rank: number) {
   if (rank === 1) {
     return "◎";
@@ -39,10 +46,12 @@ function rankGlyph(rank: number) {
   return "—";
 }
 
-export function DashboardView() {
-  const [data, setData] = useState<DashboardData | null>(null);
+export function DashboardView(props: DashboardViewProps) {
+  const [data, setData] = useState<DashboardData | null>(props.initialData || null);
   const [error, setError] = useState<string | null>(null);
   const [apiBaseUrl, setApiBaseUrl] = useState<string | null>(null);
+  const [competitionSortKey, setCompetitionSortKey] = useState<CompetitionSortKey>("date");
+  const [competitionSortDirection, setCompetitionSortDirection] = useState<SortDirection>("desc");
 
   useEffect(() => {
     setApiBaseUrl(getApiBaseUrl());
@@ -51,12 +60,49 @@ export function DashboardView() {
       .catch((err) => setError(err.message));
   }, []);
 
+  const sortedCompetitions = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    const next = [...data.competitions];
+    if (!competitionSortDirection) {
+      return next;
+    }
+
+    next.sort((left, right) => {
+      if (competitionSortKey === "competition") {
+        return left.name.localeCompare(right.name);
+      }
+      if (competitionSortKey === "dives") {
+        return left.totalDives - right.totalDives;
+      }
+      if (competitionSortKey === "winningTotal") {
+        return (left.winningScore || 0) - (right.winningScore || 0);
+      }
+      return parseCompetitionDate(left.date) - parseCompetitionDate(right.date);
+    });
+
+    if (competitionSortDirection === "desc") {
+      next.reverse();
+    }
+    return next;
+  }, [competitionSortDirection, competitionSortKey, data]);
+
   if (error) {
     return <div className="notice">{error}</div>;
   }
 
   if (!data) {
     return <div className="notice">Loading competition summary...</div>;
+  }
+
+  function cycleCompetitionSort(key: CompetitionSortKey) {
+    const nextDirection = nextSortDirection(competitionSortKey, competitionSortDirection, key, {
+      textMode: key === "competition",
+    });
+    setCompetitionSortKey(key);
+    setCompetitionSortDirection(nextDirection);
   }
 
   return (
@@ -86,14 +132,22 @@ export function DashboardView() {
           <table className="table">
             <thead>
               <tr>
-                <th>Competition</th>
-                <th>Date</th>
-                <th>Dives</th>
-                <th>Winning total</th>
+                <th>
+                  <SortableHeader active={competitionSortKey === "competition"} direction={competitionSortDirection} label="Competition" onClick={() => cycleCompetitionSort("competition")} />
+                </th>
+                <th>
+                  <SortableHeader active={competitionSortKey === "date"} direction={competitionSortDirection} label="Date" onClick={() => cycleCompetitionSort("date")} />
+                </th>
+                <th>
+                  <SortableHeader active={competitionSortKey === "dives"} direction={competitionSortDirection} label="Dives" onClick={() => cycleCompetitionSort("dives")} />
+                </th>
+                <th>
+                  <SortableHeader active={competitionSortKey === "winningTotal"} direction={competitionSortDirection} label="Winning total" onClick={() => cycleCompetitionSort("winningTotal")} />
+                </th>
               </tr>
             </thead>
             <tbody>
-              {data.competitions.map((competition) => (
+              {sortedCompetitions.map((competition) => (
                 <tr key={competition.id}>
                   <td>
                     <a href={`/competitions?id=${competition.id}`}>

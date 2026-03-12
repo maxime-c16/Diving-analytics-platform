@@ -11,6 +11,11 @@ export async function getStaticPaths() {
 }
 
 const { id } = Astro.params;
+const initialDetail = id
+  ? await fetch(`http://127.0.0.1:4101/athletes/${id}`).then((response) =>
+      response.ok ? response.json() : null,
+    )
+  : null;
 ---
 
 <AppLayout
@@ -18,5 +23,5 @@ const { id } = Astro.params;
   description="A dedicated athlete workspace that stays connected to competitions, event families, synchro partners, and dive-level performance."
   pathname="/athletes"
 >
-  <AthleteProfileView athleteId={id || ""} client:load />
+  <AthleteProfileView athleteId={id || ""} client:load initialDetail={initialDetail} />
 </AppLayout>

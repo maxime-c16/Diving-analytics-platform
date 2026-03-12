@@ -1,6 +1,11 @@
 ---
+export const prerender = false;
+
 import { AthleteDirectoryView } from "../components/AthleteDirectoryView";
 import AppLayout from "../layouts/AppLayout.astro";
+
+const response = await fetch("http://127.0.0.1:4101/athletes");
+const initialAthletes = response.ok ? await response.json() : [];
 ---
 
 <AppLayout
@@ -11,5 +16,5 @@ import AppLayout from "../layouts/AppLayout.astro";
   <script is:inline>
     {`const legacyId = new URLSearchParams(window.location.search).get("id"); if (legacyId) window.location.replace("/athletes/" + legacyId);`}
   </script>
-  <AthleteDirectoryView client:load />
+  <AthleteDirectoryView client:load initialList={initialAthletes} />
 </AppLayout>

@@ -139,8 +139,8 @@ function rankLabel(rank: number | null) {
   return `rank ${rank}`;
 }
 
-export function AthleteProfileView(props: { athleteId: string }) {
-  const [detail, setDetail] = useState<AthleteProfile | null>(null);
+export function AthleteProfileView(props: { athleteId: string; initialDetail?: AthleteProfile | null }) {
+  const [detail, setDetail] = useState<AthleteProfile | null>(props.initialDetail || null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { applyDivingRules } from "../../../../packages/diving-rules";
 import { fetchJson } from "./api";
-import { athleteProfileHref } from "./links";
+import { athleteProfileHref, clubProfileHref } from "./links";
 import { ScoreNotes } from "./ScoreNotes";
 
 type Competition = {
@@ -36,6 +36,7 @@ type CompetitionEntry = {
   eventName: string | null;
   eventType: "individual" | "synchro";
   participantNames: string[];
+  clubs?: string[];
   diveCount: number;
   bestDive: number | null;
   finalTotal: number | null;
@@ -108,6 +109,13 @@ function normalizePersonName(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function normalizeClubName(value: string | null | undefined) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 function rankGlyph(rank: number | null) {
   if (rank === 1) {
     return "◎";
@@ -140,14 +148,18 @@ function renderLedgerScores(scores: number[], droppedIndexes: number[]) {
   ));
 }
 
-export function CompetitionsView() {
+export function CompetitionsView(props: {
+  initialList?: Competition[];
+  initialDetail?: CompetitionDetailResponse | null;
+}) {
   const [competitionId, setCompetitionId] = useState("");
   const [selectedEvent, setSelectedEvent] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState("");
   const [selectedDiveId, setSelectedDiveId] = useState("");
   const [analysisView, setAnalysisView] = useState("overview");
-  const [list, setList] = useState<Competition[]>([]);
-  const [detail, setDetail] = useState<CompetitionDetailResponse | null>(null);
+  const [selectedClub, setSelectedClub] = useState("");
+  const [list, setList] = useState<Competition[]>(props.initialList || []);
+  const [detail, setDetail] = useState<CompetitionDetailResponse | null>(props.initialDetail || null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -155,6 +167,7 @@ export function CompetitionsView() {
     setSelectedEvent(readQueryParam("event"));
     setSelectedEntryId(readQueryParam("entry"));
     setSelectedDiveId(readQueryParam("dive"));
+    setSelectedClub(readQueryParam("club"));
     setAnalysisView(readQueryParam("view") || "overview");
   }, []);
 
@@ -169,7 +182,6 @@ export function CompetitionsView() {
       setDetail(null);
       return;
     }
-
     fetchJson<CompetitionDetailResponse>(`/competitions/${competitionId}`)
       .then((response) => {
         setDetail(response);
@@ -227,12 +239,20 @@ export function CompetitionsView() {
       detail.eventSummaries[0] ||
       null;
 
-    const dives = detail.dives.filter((dive) => dive.eventName === currentEvent);
-    const entries = detail.entries
+    const athleteByName = new Map(
+      detail.athletes.map((athlete) => [normalizePersonName(athlete.name), athlete]),
+    );
+    const requestedClub = selectedClub ? normalizeClubName(selectedClub) : "";
+
+    const allDives = detail.dives.filter((dive) => dive.eventName === currentEvent);
+    const allEntries = detail.entries
       .filter((entry) => entry.eventName === currentEvent)
       .map((entry) => ({
         ...entry,
-        dives: dives.filter((dive) => dive.entryId === entry.id),
+        dives: allDives.filter((dive) => dive.entryId === entry.id),
+        clubs: entry.participantNames
+          .map((name) => athleteByName.get(normalizePersonName(name))?.club || null)
+          .filter(Boolean) as string[],
       }))
       .sort((left, right) => {
         const leftRank = left.rank ?? Number.POSITIVE_INFINITY;
@@ -243,12 +263,18 @@ export function CompetitionsView() {
         return (right.finalTotal || 0) - (left.finalTotal || 0);
       });
 
+    const clubEntries = requestedClub
+      ? allEntries.filter((entry) =>
+          (entry.clubs || []).some((club) => normalizeClubName(club) === requestedClub),
+        )
+      : [];
+    const activeEntries = analysisView === "club" && requestedClub ? clubEntries : allEntries;
+    const activeEntryIds = new Set(activeEntries.map((entry) => entry.id));
+    const dives = allDives.filter((dive) => !dive.entryId || activeEntryIds.has(dive.entryId));
+    const entries = activeEntries;
+
     const selectedEntry =
       entries.find((entry) => String(entry.id) === selectedEntryId) || entries[0] || null;
-
-    const athleteByName = new Map(
-      detail.athletes.map((athlete) => [normalizePersonName(athlete.name), athlete]),
-    );
     const selectedMembers = (selectedEntry?.participantNames || [])
       .map((name) => athleteByName.get(normalizePersonName(name)))
       .filter((member): member is CompetitionAthlete => Boolean(member));
@@ -274,6 +300,12 @@ export function CompetitionsView() {
       }))
       .sort((left, right) => right.count - left.count)
       .slice(0, 12);
+
+    const eventClubs = Array.from(
+      new Set(
+        allEntries.flatMap((entry) => (entry.clubs || []).filter(Boolean)),
+      ),
+    ).sort((left, right) => left.localeCompare(right));
 
     const ledgerGroups = Array.from(
       dives.reduce((map, dive) => {
@@ -304,9 +336,15 @@ export function CompetitionsView() {
       selectedEntry,
       selectedMembers,
       diveCodeBreakdown,
+      eventClubs,
+      selectedClub,
+      clubEntries,
+      clubRoster: detail.athletes
+        .filter((athlete) => normalizeClubName(athlete.club) === requestedClub)
+        .sort((left, right) => (right.finalTotal || 0) - (left.finalTotal || 0)),
       isSynchro: eventSummary?.eventType === "synchro",
     };
-  }, [detail, selectedEntryId, selectedEvent]);
+  }, [analysisView, detail, selectedClub, selectedEntryId, selectedEvent]);
 
   useEffect(() => {
     if (!selectedDiveId || (analysisView !== "ledger" && analysisView !== "athlete")) {
@@ -327,8 +365,10 @@ export function CompetitionsView() {
     setCompetitionId(value);
     setSelectedEntryId("");
     setSelectedDiveId("");
+    setSelectedClub("");
     setAnalysisView("overview");
     writeQueryParam("id", value);
+    writeQueryParam("club", "");
     writeQueryParam("dive", "");
     writeQueryParam("view", "overview");
   }
@@ -348,10 +388,23 @@ export function CompetitionsView() {
     const value = String(entryId);
     setSelectedEntryId(value);
     setSelectedDiveId("");
+    setSelectedClub("");
     setAnalysisView("athlete");
     writeQueryParam("entry", value);
     writeQueryParam("dive", "");
+    writeQueryParam("club", "");
     writeQueryParam("view", "athlete");
+  }
+
+  function openClubFocus(clubName: string) {
+    setSelectedClub(clubName);
+    setSelectedEntryId("");
+    setSelectedDiveId("");
+    setAnalysisView("club");
+    writeQueryParam("club", clubName);
+    writeQueryParam("entry", "");
+    writeQueryParam("dive", "");
+    writeQueryParam("view", "club");
   }
 
   return (
@@ -454,6 +507,24 @@ export function CompetitionsView() {
                         {formatScore(eventScoped.eventSummary?.winningScore || null)}
                       </div>
                     </div>
+                    {eventScoped.eventClubs.length > 0 ? (
+                      <div className="list-item compact-item">
+                        <strong>Clubs in event</strong>
+                        <div className="cluster">
+                          {eventScoped.eventClubs.map((club) => (
+                            <button
+                              className="chip button-chip"
+                              data-active={normalizeClubName(selectedClub) === normalizeClubName(club)}
+                              key={club}
+                              onClick={() => openClubFocus(club)}
+                              type="button"
+                            >
+                              {club}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -523,6 +594,19 @@ export function CompetitionsView() {
                     >
                       Full ledger
                     </button>
+                    {selectedClub ? (
+                      <button
+                        className="toggle-pill"
+                        data-active={analysisView === "club"}
+                        onClick={() => {
+                          setAnalysisView("club");
+                          writeQueryParam("view", "club");
+                        }}
+                        type="button"
+                      >
+                        Club focus
+                      </button>
+                    ) : null}
                   </div>
                   <div className="muted">
                     {analysisView === "overview"
@@ -531,11 +615,17 @@ export function CompetitionsView() {
                         ? eventScoped.isSynchro
                           ? "Keep one pair in focus with both diver names and split judging visible."
                           : "Keep one athlete in focus and inspect their progression without the rest of the report in the way."
-                        : "Open the full event log only when you need per-dive inspection or auditing."}
+                        : analysisView === "club"
+                          ? "Keep one club in view across the current event without losing the full competition context."
+                          : "Open the full event log only when you need per-dive inspection or auditing."}
                   </div>
                 </div>
 
-                {analysisView === "overview" ? (
+                <div
+                  aria-hidden={analysisView !== "overview"}
+                  className="analysis-panel"
+                  hidden={analysisView !== "overview"}
+                >
                   <div className="two-column">
                     <div className="panel">
                       <h2>{eventScoped.isSynchro ? "Pair leaderboard" : "Event leaderboard"}</h2>
@@ -606,10 +696,15 @@ export function CompetitionsView() {
                       </div>
                     </div>
                   </div>
-                ) : null}
+                </div>
 
-                {analysisView === "athlete" && eventScoped.selectedEntry ? (
-                  <div className="focus-layout">
+                <div
+                  aria-hidden={analysisView !== "athlete"}
+                  className="analysis-panel"
+                  hidden={analysisView !== "athlete"}
+                >
+                  {eventScoped.selectedEntry ? (
+                    <div className="focus-layout">
                     <div className="panel focus-summary-panel">
                       <h2>{eventScoped.isSynchro ? "Selected pair" : "Selected athlete in event"}</h2>
                       <div className="stack compact-stack">
@@ -707,10 +802,98 @@ export function CompetitionsView() {
                         </tbody>
                       </table>
                     </div>
-                  </div>
-                ) : null}
+                    </div>
+                  ) : (
+                    <div className="panel">
+                      <h2>{eventScoped.isSynchro ? "Pair focus" : "Athlete focus"}</h2>
+                      <p className="muted">Select an entry from the event leaderboard to inspect the progression table.</p>
+                    </div>
+                  )}
+                </div>
 
-                {analysisView === "ledger" ? (
+                <div
+                  aria-hidden={analysisView !== "club"}
+                  className="analysis-panel"
+                  hidden={analysisView !== "club"}
+                >
+                  {selectedClub ? (
+                    <div className="two-column">
+                      <div className="panel">
+                        <h2>Club focus</h2>
+                        <div className="stack compact-stack">
+                          <div className="list-item compact-item">
+                            <strong>{selectedClub}</strong>
+                            <div className="muted">
+                              {eventScoped.clubEntries.length} {eventScoped.isSynchro ? "entries" : "athletes"} in{" "}
+                              {eventScoped.currentEvent}
+                            </div>
+                          </div>
+                          <div className="cluster">
+                            <a className="chip" href={clubProfileHref(selectedClub)}>
+                              Open club profile
+                            </a>
+                            <span className="chip">{eventScoped.clubRoster.length} roster athletes in competition</span>
+                          </div>
+                          <div className="analysis-subpanel">
+                            <div className="rail-label">Club athletes in competition</div>
+                            <div className="focus-entry-list">
+                              {eventScoped.clubRoster.map((athlete) => (
+                                <a
+                                  className="focus-entry-item"
+                                  href={athleteProfileHref(athlete.id)}
+                                  key={athlete.id}
+                                >
+                                  <strong>{athlete.name}</strong>
+                                  <span>
+                                    {rankGlyph(athlete.rank)} {rankLabel(athlete.rank)} · {formatScore(athlete.finalTotal)}
+                                  </span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="panel">
+                        <h2>Club entries in event</h2>
+                        <table className="table">
+                          <thead>
+                            <tr>
+                              <th>{eventScoped.isSynchro ? "Entry" : "Athlete"}</th>
+                              <th>Rank</th>
+                              <th>Dives</th>
+                              <th>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {eventScoped.clubEntries.map((entry) => (
+                              <tr key={entry.id} onClick={() => openEntryInEvent(entry.id)}>
+                                <td>
+                                  <strong>{entry.entryName}</strong>
+                                  <div className="muted">{entry.participantNames.join(" / ")}</div>
+                                </td>
+                                <td>{rankGlyph(entry.rank)} {rankLabel(entry.rank)}</td>
+                                <td>{entry.diveCount}</td>
+                                <td>{formatScore(entry.finalTotal)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="panel">
+                      <h2>Club focus</h2>
+                      <p className="muted">Open this view from a club profile to keep the competition filtered to one club.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  aria-hidden={analysisView !== "ledger"}
+                  className="analysis-panel"
+                  hidden={analysisView !== "ledger"}
+                >
                   <div className="panel">
                     <h2>Event dive ledger</h2>
                     <table className="table table-ledger">
@@ -835,7 +1018,7 @@ export function CompetitionsView() {
                       ))}
                     </table>
                   </div>
-                ) : null}
+                </div>
               </div>
             </div>
           </section>

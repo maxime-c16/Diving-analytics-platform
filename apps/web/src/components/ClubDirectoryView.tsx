@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchJson } from "./api";
 import { clubProfileHref } from "./links";
+import { SortableHeader } from "./SortableHeader";
+import { nextSortDirection, parseCompetitionDate, type SortDirection } from "./tableSorting";
 
 type Club = {
   slug: string;
@@ -14,6 +16,12 @@ type Club = {
   podiumCount: number;
 };
 
+type ClubSortKey = "club" | "roster" | "competitions" | "podiums" | "bestTotal" | "latestCompetition";
+
+type ClubDirectoryViewProps = {
+  initialList?: Club[];
+};
+
 function formatScore(value: number | null) {
   if (typeof value !== "number") {
     return "n/a";
@@ -21,11 +29,12 @@ function formatScore(value: number | null) {
   return value.toFixed(2).replace(/\.00$/, "");
 }
 
-export function ClubDirectoryView() {
-  const [list, setList] = useState<Club[]>([]);
+export function ClubDirectoryView(props: ClubDirectoryViewProps) {
+  const [list, setList] = useState<Club[]>(props.initialList || []);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [sortMode, setSortMode] = useState("recent");
+  const [sortKey, setSortKey] = useState<ClubSortKey>("latestCompetition");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [visibleCount, setVisibleCount] = useState(18);
 
   useEffect(() => {
@@ -43,28 +52,48 @@ export function ClubDirectoryView() {
         String(club.latestCompetitionName || "").toLowerCase().includes(normalizedQuery),
     );
 
-    next.sort((left, right) => {
-      if (sortMode === "roster") {
-        return right.athleteCount - left.athleteCount || left.name.localeCompare(right.name);
+    if (sortDirection) {
+      next.sort((left, right) => {
+        if (sortKey === "club") {
+          return left.name.localeCompare(right.name);
+        }
+        if (sortKey === "roster") {
+          return left.athleteCount - right.athleteCount || left.name.localeCompare(right.name);
+        }
+        if (sortKey === "competitions") {
+          return left.competitionCount - right.competitionCount || left.name.localeCompare(right.name);
+        }
+        if (sortKey === "podiums") {
+          return left.podiumCount - right.podiumCount || left.name.localeCompare(right.name);
+        }
+        if (sortKey === "bestTotal") {
+          return (left.bestTotal || 0) - (right.bestTotal || 0) || left.name.localeCompare(right.name);
+        }
+        return parseCompetitionDate(left.latestCompetitionDate) - parseCompetitionDate(right.latestCompetitionDate) || left.name.localeCompare(right.name);
+      });
+
+      if (sortDirection === "desc") {
+        next.reverse();
       }
-      if (sortMode === "results") {
-        return (right.bestTotal || 0) - (left.bestTotal || 0) || left.name.localeCompare(right.name);
-      }
-      if (sortMode === "podiums") {
-        return right.podiumCount - left.podiumCount || left.name.localeCompare(right.name);
-      }
-      return (right.latestCompetitionDate || "").localeCompare(left.latestCompetitionDate || "") || left.name.localeCompare(right.name);
-    });
+    }
 
     return next;
-  }, [list, query, sortMode]);
+  }, [list, query, sortDirection, sortKey]);
 
   useEffect(() => {
     setVisibleCount(18);
-  }, [query, sortMode]);
+  }, [query, sortDirection, sortKey]);
 
   const spotlight = filtered.slice(0, 6);
   const visible = filtered.slice(0, visibleCount);
+
+  function cycleSort(key: ClubSortKey) {
+    const nextDirection = nextSortDirection(sortKey, sortDirection, key, {
+      textMode: key === "club",
+    });
+    setSortKey(key);
+    setSortDirection(nextDirection);
+  }
 
   return (
     <div className="page-grid">
@@ -110,15 +139,6 @@ export function ClubDirectoryView() {
               value={query}
             />
           </label>
-          <label className="directory-field">
-            <span>Sort</span>
-            <select className="input" onChange={(event) => setSortMode(event.target.value)} value={sortMode}>
-              <option value="recent">Latest competition</option>
-              <option value="roster">Roster size</option>
-              <option value="results">Best total</option>
-              <option value="podiums">Podiums</option>
-            </select>
-          </label>
           <div className="directory-toolbar-meta">
             <strong>{filtered.length}</strong>
             <span>clubs in view</span>
@@ -160,12 +180,24 @@ export function ClubDirectoryView() {
         <table className="table table-clickable">
           <thead>
             <tr>
-              <th>Club</th>
-              <th>Roster</th>
-              <th>Competitions</th>
-              <th>Podiums</th>
-              <th>Best total</th>
-              <th>Latest competition</th>
+              <th>
+                <SortableHeader active={sortKey === "club"} direction={sortDirection} label="Club" onClick={() => cycleSort("club")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "roster"} direction={sortDirection} label="Roster" onClick={() => cycleSort("roster")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "competitions"} direction={sortDirection} label="Competitions" onClick={() => cycleSort("competitions")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "podiums"} direction={sortDirection} label="Podiums" onClick={() => cycleSort("podiums")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "bestTotal"} direction={sortDirection} label="Best total" onClick={() => cycleSort("bestTotal")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "latestCompetition"} direction={sortDirection} label="Latest competition" onClick={() => cycleSort("latestCompetition")} />
+              </th>
             </tr>
           </thead>
           <tbody>

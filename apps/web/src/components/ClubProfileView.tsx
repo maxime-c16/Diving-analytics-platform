@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { fetchJson } from "./api";
 import { athleteProfileHref, competitionFocusHref } from "./links";
+import { SortableHeader } from "./SortableHeader";
+import { nextSortDirection, parseCompetitionDate, type SortDirection } from "./tableSorting";
 
 type ClubDetail = {
   club: {
@@ -25,6 +27,7 @@ type ClubDetail = {
     featuredEntryId: number | null;
     featuredEntryName: string | null;
     featuredRank: number | null;
+    competitionRank: number | null;
   } | null;
   roster: Array<{
     athleteId: number;
@@ -72,6 +75,7 @@ type ClubDetail = {
     featuredEntryId: number | null;
     featuredEntryName: string | null;
     featuredRank: number | null;
+    competitionRank: number | null;
   }>;
   recentDives: Array<{
     diveId: number;
@@ -116,15 +120,49 @@ function rankLabel(rank: number | null) {
   return `rank ${rank}`;
 }
 
-export function ClubProfileView(props: { clubSlug: string }) {
-  const [detail, setDetail] = useState<ClubDetail | null>(null);
+type RosterSortKey = "athlete" | "competitions" | "dives" | "bestTotal" | "latestSeen";
+export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubDetail | null }) {
+  const [detail, setDetail] = useState<ClubDetail | null>(props.initialDetail || null);
   const [error, setError] = useState<string | null>(null);
+  const [rosterSortKey, setRosterSortKey] = useState<RosterSortKey>("bestTotal");
+  const [rosterSortDirection, setRosterSortDirection] = useState<SortDirection>("desc");
 
   useEffect(() => {
     fetchJson<ClubDetail>(`/clubs/${props.clubSlug}`)
       .then(setDetail)
       .catch((err) => setError(err.message));
   }, [props.clubSlug]);
+
+  const sortedRoster = detail
+    ? (() => {
+        const next = [...detail.roster];
+        if (!rosterSortDirection) {
+          return next;
+        }
+
+        next.sort((left, right) => {
+          if (rosterSortKey === "athlete") {
+            return left.athleteName.localeCompare(right.athleteName);
+          }
+          if (rosterSortKey === "competitions") {
+            return left.competitionCount - right.competitionCount;
+          }
+          if (rosterSortKey === "dives") {
+            return left.diveCount - right.diveCount;
+          }
+          if (rosterSortKey === "latestSeen") {
+            return parseCompetitionDate(left.latestCompetitionDate) - parseCompetitionDate(right.latestCompetitionDate);
+          }
+          return (left.bestTotal || 0) - (right.bestTotal || 0);
+        });
+
+        if (rosterSortDirection === "desc") {
+          next.reverse();
+        }
+
+        return next;
+      })()
+    : [];
 
   if (error) {
     return <div className="notice">{error}</div>;
@@ -134,14 +172,15 @@ export function ClubProfileView(props: { clubSlug: string }) {
     return <div className="notice">Loading club profile...</div>;
   }
 
-  const latestCompetitionHref = detail.latestCompetition
-    ? competitionFocusHref({
-        competitionId: detail.latestCompetition.competitionId,
-        eventName: detail.latestCompetition.featuredEventName,
-        entryId: detail.latestCompetition.featuredEntryId,
-        view: "athlete",
-      })
-    : null;
+  const recentCompetitions = detail.competitionHistory.slice(0, 3);
+
+  function cycleRosterSort(key: RosterSortKey) {
+    const nextDirection = nextSortDirection(rosterSortKey, rosterSortDirection, key, {
+      textMode: key === "athlete",
+    });
+    setRosterSortKey(key);
+    setRosterSortDirection(nextDirection);
+  }
 
   return (
     <div className="page-grid">
@@ -178,30 +217,43 @@ export function ClubProfileView(props: { clubSlug: string }) {
 
       <section className="profile-grid">
         <div className="panel">
-          <h2>Latest competition</h2>
-          {detail.latestCompetition ? (
-            <a className="profile-card-link" href={latestCompetitionHref || "#"}>
-              <div className="stack compact-stack">
-                <div className="list-item compact-item">
-                  <strong>{detail.latestCompetition.competitionName}</strong>
-                  <div className="muted">
-                    {detail.latestCompetition.competitionDate || "Date not recorded"} ·{" "}
-                    {detail.latestCompetition.featuredEventName || "Event not recorded"}
+          <h2>Recent competitions</h2>
+          {recentCompetitions.length > 0 ? (
+            <div className="stack compact-stack">
+              {recentCompetitions.map((competition) => (
+                <a
+                  className="profile-card-link"
+                  href={competitionFocusHref({
+                    competitionId: competition.competitionId,
+                    eventName: competition.featuredEventName,
+                    view: "club",
+                    clubName: detail.club.name,
+                  })}
+                  key={competition.competitionId}
+                >
+                  <div className="stack compact-stack">
+                    <div className="list-item compact-item">
+                      <strong>{competition.competitionName}</strong>
+                      <div className="muted">
+                        {competition.competitionDate || "Date not recorded"} ·{" "}
+                        {competition.featuredEventName || "Event not recorded"}
+                      </div>
+                    </div>
+                    <div className="cluster">
+                      <span className={`rank-mark rank-${competition.competitionRank || "other"}`}>
+                        <span className="rank-mark-glyph" aria-hidden="true">
+                          {rankGlyph(competition.competitionRank)}
+                        </span>
+                        <span>{rankLabel(competition.competitionRank)}</span>
+                      </span>
+                      <span className="chip">{competition.athleteCount} athletes</span>
+                      <span className="chip">{competition.eventCount} events</span>
+                      <span className="chip">best {formatScore(competition.bestTotal)}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="cluster">
-                  <span className={`rank-mark rank-${detail.latestCompetition.featuredRank || "other"}`}>
-                    <span className="rank-mark-glyph" aria-hidden="true">
-                      {rankGlyph(detail.latestCompetition.featuredRank)}
-                    </span>
-                    <span>{rankLabel(detail.latestCompetition.featuredRank)}</span>
-                  </span>
-                  <span className="chip">{detail.latestCompetition.athleteCount} athletes</span>
-                  <span className="chip">{detail.latestCompetition.eventCount} events</span>
-                  <span className="chip">best {formatScore(detail.latestCompetition.bestTotal)}</span>
-                </div>
-              </div>
-            </a>
+                </a>
+              ))}
+            </div>
           ) : (
             <div className="notice">No competition history available.</div>
           )}
@@ -218,6 +270,7 @@ export function ClubProfileView(props: { clubSlug: string }) {
                   eventName: result.eventName,
                   entryId: result.entryId,
                   view: "athlete",
+                  clubName: detail.club.name,
                 })}
                 key={`${result.competitionId}-${result.entryId}-${index}`}
               >
@@ -250,15 +303,50 @@ export function ClubProfileView(props: { clubSlug: string }) {
         <table className="table">
           <thead>
             <tr>
-              <th>Athlete</th>
-              <th>Competitions</th>
-              <th>Dives</th>
-              <th>Best total</th>
-              <th>Latest seen</th>
+              <th>
+                <SortableHeader
+                  active={rosterSortKey === "athlete"}
+                  direction={rosterSortDirection}
+                  label="Athlete"
+                  onClick={() => cycleRosterSort("athlete")}
+                />
+              </th>
+              <th>
+                <SortableHeader
+                  active={rosterSortKey === "competitions"}
+                  direction={rosterSortDirection}
+                  label="Competitions"
+                  onClick={() => cycleRosterSort("competitions")}
+                />
+              </th>
+              <th>
+                <SortableHeader
+                  active={rosterSortKey === "dives"}
+                  direction={rosterSortDirection}
+                  label="Dives"
+                  onClick={() => cycleRosterSort("dives")}
+                />
+              </th>
+              <th>
+                <SortableHeader
+                  active={rosterSortKey === "bestTotal"}
+                  direction={rosterSortDirection}
+                  label="Best total"
+                  onClick={() => cycleRosterSort("bestTotal")}
+                />
+              </th>
+              <th>
+                <SortableHeader
+                  active={rosterSortKey === "latestSeen"}
+                  direction={rosterSortDirection}
+                  label="Latest seen"
+                  onClick={() => cycleRosterSort("latestSeen")}
+                />
+              </th>
             </tr>
           </thead>
           <tbody>
-            {detail.roster.map((athlete) => (
+            {sortedRoster.map((athlete) => (
               <tr key={athlete.athleteId}>
                 <td>
                   <a href={athleteProfileHref(athlete.athleteId)}>
@@ -308,8 +396,8 @@ export function ClubProfileView(props: { clubSlug: string }) {
                         href={competitionFocusHref({
                           competitionId: stat.latestCompetitionId,
                           eventName: stat.latestEventName,
-                          entryId: stat.latestEntryId,
-                          view: "athlete",
+                          view: "club",
+                          clubName: detail.club.name,
                         })}
                       >
                         {stat.latestCompetitionName}
@@ -336,18 +424,18 @@ export function ClubProfileView(props: { clubSlug: string }) {
                 href={competitionFocusHref({
                   competitionId: row.competitionId,
                   eventName: row.featuredEventName,
-                  entryId: row.featuredEntryId,
-                  view: "athlete",
+                  view: "club",
+                  clubName: detail.club.name,
                 })}
                 key={`${row.competitionId}-${row.featuredEntryId}`}
               >
                 <div className="between-row">
                   <div className="competition-history-main">
-                    <span className={`rank-mark rank-${row.featuredRank || "other"}`}>
+                    <span className={`rank-mark rank-${row.competitionRank || "other"}`}>
                       <span className="rank-mark-glyph" aria-hidden="true">
-                        {rankGlyph(row.featuredRank)}
+                        {rankGlyph(row.competitionRank)}
                       </span>
-                      <span>{rankLabel(row.featuredRank)}</span>
+                      <span>{rankLabel(row.competitionRank)}</span>
                     </span>
                     <strong>{row.competitionName}</strong>
                   </div>
@@ -389,6 +477,7 @@ export function ClubProfileView(props: { clubSlug: string }) {
                     eventName: dive.eventName,
                     entryId: dive.entryId,
                     diveId: dive.diveId,
+                    clubName: detail.club.name,
                   }))
                 }
               >

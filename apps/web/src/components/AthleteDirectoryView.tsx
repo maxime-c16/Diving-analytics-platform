@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchJson } from "./api";
 import { athleteProfileHref, clubProfileHref } from "./links";
+import { SortableHeader } from "./SortableHeader";
+import { nextSortDirection, type SortDirection } from "./tableSorting";
 
 type Athlete = {
   id: number;
@@ -28,12 +30,19 @@ function matchClub(athlete: Athlete, club: string) {
   return [athlete.club, ...(athlete.clubs || [])].filter(Boolean).includes(club);
 }
 
-export function AthleteDirectoryView() {
-  const [list, setList] = useState<Athlete[]>([]);
+type AthleteSortKey = "athlete" | "club" | "competitions" | "dives" | "averageDive" | "bestTotal";
+
+type AthleteDirectoryViewProps = {
+  initialList?: Athlete[];
+};
+
+export function AthleteDirectoryView(props: AthleteDirectoryViewProps) {
+  const [list, setList] = useState<Athlete[]>(props.initialList || []);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [club, setClub] = useState("");
-  const [sortMode, setSortMode] = useState("best");
+  const [sortKey, setSortKey] = useState<AthleteSortKey>("bestTotal");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [visibleCount, setVisibleCount] = useState(24);
 
   useEffect(() => {
@@ -66,24 +75,33 @@ export function AthleteDirectoryView() {
       return matchesQuery && matchClub(athlete, club);
     });
 
-    next.sort((left, right) => {
-      if (sortMode === "name") {
-        return left.name.localeCompare(right.name);
-      }
-      if (sortMode === "activity") {
-        if (right.competitionCount !== left.competitionCount) {
-          return right.competitionCount - left.competitionCount;
+    if (sortDirection) {
+      next.sort((left, right) => {
+        if (sortKey === "athlete") {
+          return left.name.localeCompare(right.name);
         }
-        return right.diveCount - left.diveCount;
+        if (sortKey === "club") {
+          return String(left.club || "").localeCompare(String(right.club || ""));
+        }
+        if (sortKey === "competitions") {
+          return left.competitionCount - right.competitionCount;
+        }
+        if (sortKey === "dives") {
+          return left.diveCount - right.diveCount;
+        }
+        if (sortKey === "averageDive") {
+          return (left.averageDiveScore || 0) - (right.averageDiveScore || 0);
+        }
+        return (left.bestTotal || 0) - (right.bestTotal || 0);
+      });
+
+      if (sortDirection === "desc") {
+        next.reverse();
       }
-      if (sortMode === "dives") {
-        return right.diveCount - left.diveCount;
-      }
-      return (right.bestTotal || 0) - (left.bestTotal || 0);
-    });
+    }
 
     return next;
-  }, [club, list, query, sortMode]);
+  }, [club, list, query, sortDirection, sortKey]);
 
   const visible = filtered.slice(0, visibleCount);
   const spotlight = filtered.slice(0, 6);
@@ -101,7 +119,15 @@ export function AthleteDirectoryView() {
 
   useEffect(() => {
     setVisibleCount(24);
-  }, [club, query, sortMode]);
+  }, [club, query, sortDirection, sortKey]);
+
+  function cycleSort(key: AthleteSortKey) {
+    const nextDirection = nextSortDirection(sortKey, sortDirection, key, {
+      textMode: key === "athlete" || key === "club",
+    });
+    setSortKey(key);
+    setSortDirection(nextDirection);
+  }
 
   return (
     <div className="page-grid">
@@ -158,15 +184,6 @@ export function AthleteDirectoryView() {
               ))}
             </select>
           </label>
-          <label className="directory-field">
-            <span>Sort</span>
-            <select className="input" onChange={(event) => setSortMode(event.target.value)} value={sortMode}>
-              <option value="best">Best total</option>
-              <option value="activity">Competition activity</option>
-              <option value="dives">Dive volume</option>
-              <option value="name">Name</option>
-            </select>
-          </label>
           <div className="directory-toolbar-meta">
             <strong>{filtered.length}</strong>
             <span>profiles in view</span>
@@ -207,12 +224,24 @@ export function AthleteDirectoryView() {
         <table className="table table-clickable">
           <thead>
             <tr>
-              <th>Athlete</th>
-              <th>Club</th>
-              <th>Competitions</th>
-              <th>Dives</th>
-              <th>Average dive</th>
-              <th>Best total</th>
+              <th>
+                <SortableHeader active={sortKey === "athlete"} direction={sortDirection} label="Athlete" onClick={() => cycleSort("athlete")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "club"} direction={sortDirection} label="Club" onClick={() => cycleSort("club")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "competitions"} direction={sortDirection} label="Competitions" onClick={() => cycleSort("competitions")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "dives"} direction={sortDirection} label="Dives" onClick={() => cycleSort("dives")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "averageDive"} direction={sortDirection} label="Average dive" onClick={() => cycleSort("averageDive")} />
+              </th>
+              <th>
+                <SortableHeader active={sortKey === "bestTotal"} direction={sortDirection} label="Best total" onClick={() => cycleSort("bestTotal")} />
+              </th>
             </tr>
           </thead>
           <tbody>

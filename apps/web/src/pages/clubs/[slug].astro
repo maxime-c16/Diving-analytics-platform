@@ -11,6 +11,11 @@ export async function getStaticPaths() {
 }
 
 const { slug } = Astro.params;
+const initialDetail = slug
+  ? await fetch(`http://127.0.0.1:4101/clubs/${slug}`).then((response) =>
+      response.ok ? response.json() : null,
+    )
+  : null;
 ---
 
 <AppLayout
@@ -18,5 +23,5 @@ const { slug } = Astro.params;
   description="A club-level workspace with roster coverage, competition-level deep links, recent dives, and direct navigation into athlete profiles."
   pathname="/clubs"
 >
-  <ClubProfileView clubSlug={slug || ""} client:load />
+  <ClubProfileView clubSlug={slug || ""} client:load initialDetail={initialDetail} />
 </AppLayout>

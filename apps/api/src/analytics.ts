@@ -48,6 +48,10 @@ function normalizePersonName(value: string | null | undefined) {
     .toLowerCase();
 }
 
+function athleteIdentityKey(name: string | null | undefined, birthYear: string | null | undefined) {
+  return `${normalizePersonName(name)}::${String(birthYear || "").trim()}`;
+}
+
 function buildAthleteIdByName() {
   const rows = db
     .query(`
@@ -60,6 +64,21 @@ function buildAthleteIdByName() {
     .all() as Array<{ id: number; name: string }>;
 
   return new Map(rows.map((row) => [normalizePersonName(row.name), row.id]));
+}
+
+function buildAthleteIdByIdentity() {
+  const rows = db
+    .query(`
+      SELECT
+        MIN(id) AS id,
+        name,
+        birth_year AS birthYear
+      FROM athletes
+      GROUP BY LOWER(TRIM(name)), IFNULL(birth_year, '')
+    `)
+    .all() as Array<{ id: number; name: string; birthYear: string | null }>;
+
+  return new Map(rows.map((row) => [athleteIdentityKey(row.name, row.birthYear), row.id]));
 }
 
 function buildCanonicalAthleteName(name: string | null | undefined, fallback: string | null | undefined) {
@@ -122,6 +141,8 @@ export function getCompetitionDetail(id: number) {
     return null;
   }
 
+  const athleteIdByName = buildAthleteIdByName();
+
   const athletes = db
     .query(`
       SELECT
@@ -145,6 +166,7 @@ export function getCompetitionDetail(id: number) {
     .all(id)
     .map((athlete: any) => ({
       ...athlete,
+      id: athleteIdByName.get(normalizePersonName(athlete.name)) || athlete.id,
       club: normalizeClubName(athlete.club, athlete.name),
       events: athlete.events ? String(athlete.events).split(",") : [],
     }));
@@ -220,6 +242,7 @@ export function getCompetitionDetail(id: number) {
     .all(id)
     .map((dive: any) => ({
       ...dive,
+      athleteId: athleteIdByName.get(normalizePersonName(dive.athleteName)) || dive.athleteId,
       participantNames: parseJsonArray(dive.participantNames),
       judgeScores: parseJsonArray(dive.judgeScores),
       executionScores: parseJsonArray(dive.executionScores),
@@ -239,6 +262,8 @@ export function getCompetitionDetail(id: number) {
 }
 
 export function listAthletes() {
+  const athleteIdByIdentity = buildAthleteIdByIdentity();
+
   return db
     .query(`
       SELECT
@@ -266,6 +291,7 @@ export function listAthletes() {
         : [];
       return {
         ...athlete,
+        id: athleteIdByIdentity.get(athleteIdentityKey(athlete.name, athlete.birthYear)) || athlete.id,
         club: normalizeClubName(clubs[0] || null, athlete.name),
         clubs: clubs.map((club: string) => normalizeClubName(club, athlete.name)).filter(Boolean),
       };
@@ -273,6 +299,7 @@ export function listAthletes() {
 }
 
 export function listClubs() {
+  const athleteIdByIdentity = buildAthleteIdByIdentity();
   const rows = db
     .query(`
       SELECT
@@ -334,7 +361,7 @@ export function listClubs() {
         podiumCount: 0,
       };
 
-    current.athleteIds.add(row.id);
+    current.athleteIds.add(athleteIdByIdentity.get(athleteIdentityKey(row.name, row.birthYear)) || row.id);
     if (row.competitionId) {
       current.competitionIds.add(row.competitionId);
     }
@@ -376,6 +403,7 @@ export function listClubs() {
 }
 
 export function getClubDetail(slug: string) {
+  const athleteIdByIdentity = buildAthleteIdByIdentity();
   const athletes = db
     .query(`
       SELECT
@@ -475,7 +503,7 @@ export function getClubDetail(slug: string) {
 
   const roster = rosterRows
     .map((row) => ({
-      athleteId: row.athleteId,
+      athleteId: athleteIdByIdentity.get(athleteIdentityKey(row.athleteName, row.birthYear)) || row.athleteId,
       athleteName: row.athleteName,
       birthYear: row.birthYear,
       competitionCount: row.competitionCount,
@@ -507,7 +535,9 @@ export function getClubDetail(slug: string) {
       const members = matchingAthletes.filter((athlete) =>
         entry.participantNames.some((name: string) => normalizePersonName(name) === normalizePersonName(athlete.name)),
       );
-      members.forEach((member) => current.athleteCount.add(member.id));
+      members.forEach((member) =>
+        current.athleteCount.add(athleteIdByIdentity.get(athleteIdentityKey(member.name, member.birthYear)) || member.id),
+      );
       if (entry.eventName) {
         current.eventCount.add(entry.eventName);
       }
@@ -531,6 +561,77 @@ export function getClubDetail(slug: string) {
       eventCount: value.eventCount.size,
     }))
     .sort((left, right) => toTimestamp(right.competitionDate) - toTimestamp(left.competitionDate));
+
+  const competitionIds = competitionHistory.map((row) => row.competitionId);
+  const competitionPlaceholders = competitionIds.map(() => "?").join(", ");
+  const clubCompetitionRows =
+    competitionIds.length > 0
+      ? (db
+          .query(`
+            SELECT
+              a.name,
+              a.birth_year AS birthYear,
+              a.club,
+              c.id AS competitionId,
+              e.event_name AS eventName,
+              d.id AS diveId,
+              d.cumulative_score AS cumulativeScore
+            FROM athletes a
+            LEFT JOIN entry_members em ON em.athlete_id = a.id
+            LEFT JOIN entries e ON e.id = em.entry_id
+            LEFT JOIN competitions c ON c.id = e.competition_id
+            LEFT JOIN dives d ON d.entry_id = e.id
+            WHERE c.id IN (${competitionPlaceholders})
+          `)
+          .all(...competitionIds) as Array<any>)
+      : [];
+
+  const clubRanksByCompetition = new Map<number, Map<string, number>>();
+
+  for (const row of clubCompetitionRows) {
+    const normalizedClub = normalizeClubName(row.club, row.name);
+    if (!normalizedClub || !row.competitionId) {
+      continue;
+    }
+
+    const competitionMap =
+      clubRanksByCompetition.get(row.competitionId) ||
+      new Map<string, { name: string; bestTotal: number; athleteIds: Set<number>; eventNames: Set<string> }>();
+    const key = normalizePersonName(normalizedClub);
+    const current =
+      competitionMap.get(key) || {
+        name: normalizedClub,
+        bestTotal: 0,
+        athleteIds: new Set<number>(),
+        eventNames: new Set<string>(),
+      };
+
+    current.athleteIds.add(athleteIdByIdentity.get(athleteIdentityKey(row.name, row.birthYear)) || 0);
+    if (row.eventName) {
+      current.eventNames.add(row.eventName);
+    }
+    if (typeof row.cumulativeScore === "number") {
+      current.bestTotal = Math.max(current.bestTotal, row.cumulativeScore);
+    }
+
+    competitionMap.set(key, current);
+    clubRanksByCompetition.set(row.competitionId, competitionMap);
+  }
+
+  for (const [competitionId, clubs] of clubRanksByCompetition) {
+    const ranked = Array.from(clubs.values()).sort(
+      (left, right) =>
+        right.bestTotal - left.bestTotal ||
+        right.athleteIds.size - left.athleteIds.size ||
+        right.eventNames.size - left.eventNames.size ||
+        left.name.localeCompare(right.name),
+    );
+    const rankMap = new Map<string, number>();
+    ranked.forEach((club, index) => {
+      rankMap.set(normalizePersonName(club.name), index + 1);
+    });
+    clubRanksByCompetition.set(competitionId, rankMap as any);
+  }
 
   const latestCompetition = competitionHistory[0] || null;
 
@@ -556,7 +657,9 @@ export function getClubDetail(slug: string) {
       current.appearanceCount += 1;
       matchingAthletes.forEach((athlete) => {
         if (entry.participantNames.some((name: string) => normalizePersonName(name) === normalizePersonName(athlete.name))) {
-          current.athleteCount.add(athlete.id);
+          current.athleteCount.add(
+            athleteIdByIdentity.get(athleteIdentityKey(athlete.name, athlete.birthYear)) || athlete.id,
+          );
         }
       });
       if (typeof entry.finalTotal === "number") {
@@ -613,11 +716,25 @@ export function getClubDetail(slug: string) {
       podiumCount,
       latestCompetitionDate: latestCompetition?.competitionDate || null,
     },
-    latestCompetition,
+    latestCompetition: latestCompetition
+      ? {
+          ...latestCompetition,
+          competitionRank:
+            (clubRanksByCompetition.get(latestCompetition.competitionId) as Map<string, number> | undefined)?.get(
+              normalizePersonName(clubName),
+            ) || null,
+        }
+      : null,
     roster,
     eventTypeStats,
     topResults,
-    competitionHistory,
+    competitionHistory: competitionHistory.map((competition) => ({
+      ...competition,
+      competitionRank:
+        (clubRanksByCompetition.get(competition.competitionId) as Map<string, number> | undefined)?.get(
+          normalizePersonName(clubName),
+        ) || null,
+    })),
     recentDives,
   };
 }
@@ -661,6 +778,7 @@ export function getAthleteDetail(id: number) {
   const athleteIds = relatedAthletes.map((row) => row.id);
   const placeholders = athleteIds.map(() => "?").join(", ");
   const athleteIdByName = buildAthleteIdByName();
+  const athleteIdByIdentity = buildAthleteIdByIdentity();
 
   const dives = db
     .query(`
@@ -943,7 +1061,10 @@ export function getAthleteDetail(id: number) {
   return {
     athlete: {
       ...athlete,
-      id: relatedAthletes[0]?.id || (athlete as any).id,
+      id:
+        athleteIdByIdentity.get(athleteIdentityKey((athlete as any).name, (athlete as any).birthYear)) ||
+        relatedAthletes[0]?.id ||
+        (athlete as any).id,
       competitionCount: totalsByCompetition.length,
       diveCount: dives.length,
       averageDiveScore,
@@ -973,6 +1094,7 @@ export function getAthleteDetail(id: number) {
 }
 
 export function getDashboard() {
+  const athleteIdByIdentity = buildAthleteIdByIdentity();
   const overview = db
     .query(`
       SELECT
@@ -998,7 +1120,11 @@ export function getDashboard() {
       ORDER BY bestTotal DESC
       LIMIT 8
     `)
-    .all();
+    .all()
+    .map((athlete: any) => ({
+      ...athlete,
+      id: athleteIdByIdentity.get(athleteIdentityKey(athlete.name, athlete.birthYear)) || athlete.id,
+    }));
 
   const competitions = listCompetitions().slice(0, 8);
 

@@ -1,6 +1,11 @@
 ---
+export const prerender = false;
+
 import { DashboardView } from "../components/DashboardView";
 import AppLayout from "../layouts/AppLayout.astro";
+
+const response = await fetch("http://127.0.0.1:4101/dashboard");
+const initialDashboard = response.ok ? await response.json() : null;
 ---
 
 <AppLayout
@@ -8,5 +13,5 @@ import AppLayout from "../layouts/AppLayout.astro";
   description="Track competition volume, review top athlete outcomes, and move directly into competition, athlete, and club analysis workspaces."
   pathname="/"
 >
-  <DashboardView client:load />
+  <DashboardView client:load initialData={initialDashboard} />
 </AppLayout>

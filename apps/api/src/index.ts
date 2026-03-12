@@ -49,6 +49,64 @@ async function extractPdf(file: File) {
   }
 }
 
+function buildExtractionReview(extraction: any) {
+  const warnings: string[] = [];
+  const athletes = Array.isArray(extraction.athletes) ? extraction.athletes : [];
+  const entries = Array.isArray(extraction.entries) ? extraction.entries : [];
+  const dives = Array.isArray(extraction.dives) ? extraction.dives : [];
+  const events = Array.isArray(extraction.summary?.events) ? extraction.summary.events : [];
+
+  if (!extraction.competition_name) {
+    warnings.push("Competition title was not detected from the result sheet.");
+  }
+  if (!extraction.date) {
+    warnings.push("Competition date was not detected and should be checked after import.");
+  }
+  if (!extraction.location) {
+    warnings.push("Competition location was not detected and should be checked after import.");
+  }
+  if ((extraction.confidence || 0) < 0.9) {
+    warnings.push("Extraction confidence is below the normal threshold for a clean text-layer import.");
+  }
+
+  const divesWithoutScores = dives.filter((dive: any) => typeof dive.final_score !== "number").length;
+  if (divesWithoutScores > 0) {
+    warnings.push(`${divesWithoutScores} dives are missing a final score in the parsed payload.`);
+  }
+
+  const synchroEntriesMissingSecondDiver = entries.filter(
+    (entry: any) => entry.event_type === "synchro" && (!Array.isArray(entry.participants) || entry.participants.length < 2),
+  ).length;
+  if (synchroEntriesMissingSecondDiver > 0) {
+    warnings.push(`${synchroEntriesMissingSecondDiver} synchro entries are missing the second diver name.`);
+  }
+
+  const eventCoverage = events.map((eventName: string) => {
+    const eventDives = dives.filter((dive: any) => dive.event_name === eventName);
+    const eventEntries = entries.filter((entry: any) => entry.event_name === eventName);
+    return {
+      eventName,
+      entryCount: eventEntries.length,
+      diveCount: eventDives.length,
+      missingScores: eventDives.filter((dive: any) => typeof dive.final_score !== "number").length,
+    };
+  });
+
+  return {
+    warnings,
+    quality: {
+      confidence: extraction.confidence || 0,
+      extractionMethod: extraction.method || "unknown",
+      rawTextLength: extraction.raw_text_length || 0,
+      entryCount: entries.length,
+      athleteCount: athletes.length,
+      diveCount: dives.length,
+      divesWithoutScores,
+    },
+    eventCoverage,
+  };
+}
+
 async function handlePdfIngestion(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
@@ -64,6 +122,7 @@ async function handlePdfIngestion(request: Request) {
 
   const competitionId = importCompetition(file.name, extraction);
   const detail = getCompetitionDetail(competitionId);
+  const review = buildExtractionReview(extraction);
 
   return json({
     message: "Result sheet ingested",
@@ -80,6 +139,7 @@ async function handlePdfIngestion(request: Request) {
       },
       method: extraction.method,
     },
+    review,
     competition: detail?.competition,
   });
 }
