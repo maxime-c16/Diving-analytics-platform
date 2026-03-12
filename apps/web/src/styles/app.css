@@ -121,6 +121,50 @@ textarea {
   padding-bottom: 20px;
 }
 
+.breadcrumb-trail {
+  margin-bottom: 10px;
+}
+
+.breadcrumb-trail ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumb-trail li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  line-height: 1.2;
+}
+
+.breadcrumb-trail li + li::before {
+  content: "/";
+  color: #b49e7d;
+}
+
+.breadcrumb-trail a {
+  color: inherit;
+}
+
+.breadcrumb-trail a:hover,
+.breadcrumb-trail a:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.breadcrumb-trail [aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .page-header h1 {
   margin: 0;
   font-size: 1.6rem;

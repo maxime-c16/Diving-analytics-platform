@@ -19,6 +19,19 @@ const initialDetail = id
 ---
 
 <AppLayout
+  breadcrumbs={
+    initialDetail
+      ? [
+          { href: "/", label: "Overview" },
+          { href: "/athletes", label: "Athletes" },
+          { label: initialDetail.athlete.name },
+        ]
+      : [
+          { href: "/", label: "Overview" },
+          { href: "/athletes", label: "Athletes" },
+          { label: "Diver Profile" },
+        ]
+  }
   title="Diver Profile"
   description="A dedicated athlete workspace that stays connected to competitions, event families, synchro partners, and dive-level performance."
   pathname="/athletes"

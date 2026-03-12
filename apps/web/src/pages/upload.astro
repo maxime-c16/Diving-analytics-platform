@@ -4,6 +4,7 @@ import AppLayout from "../layouts/AppLayout.astro";
 ---
 
 <AppLayout
+  breadcrumbs={[{ href: "/", label: "Overview" }, { label: "Results Intake" }]}
   title="Results Intake"
   description="Upload official result sheets, extract structured competition data, and open the competition workspace immediately after intake."
   pathname="/upload"

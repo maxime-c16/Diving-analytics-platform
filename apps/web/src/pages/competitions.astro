@@ -15,6 +15,15 @@ const initialDetail = competitionId
 ---
 
 <AppLayout
+  breadcrumbs={
+    initialDetail
+      ? [
+          { href: "/", label: "Overview" },
+          { href: "/competitions", label: "Competitions" },
+          { label: initialDetail.competition.name },
+        ]
+      : [{ href: "/", label: "Overview" }, { label: "Competitions" }]
+  }
   title="Competitions"
   description="Open a competition workspace, move event by event, and review rankings, athlete focus, pair analysis, and the full scoring ledger."
   pathname="/competitions"

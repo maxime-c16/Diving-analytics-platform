@@ -19,6 +19,19 @@ const initialDetail = slug
 ---
 
 <AppLayout
+  breadcrumbs={
+    initialDetail
+      ? [
+          { href: "/", label: "Overview" },
+          { href: "/clubs", label: "Clubs" },
+          { label: initialDetail.club.name },
+        ]
+      : [
+          { href: "/", label: "Overview" },
+          { href: "/clubs", label: "Clubs" },
+          { label: "Club Profile" },
+        ]
+  }
   title="Club Profile"
   description="A club-level workspace with roster coverage, competition-level deep links, recent dives, and direct navigation into athlete profiles."
   pathname="/clubs"

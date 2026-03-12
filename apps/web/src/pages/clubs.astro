@@ -9,6 +9,7 @@ const initialClubs = response.ok ? await response.json() : [];
 ---
 
 <AppLayout
+  breadcrumbs={[{ href: "/", label: "Overview" }, { label: "Clubs" }]}
   title="Clubs"
   description="Review club rosters, recent competition presence, event-family coverage, and direct navigation into athlete and competition contexts."
   pathname="/clubs"

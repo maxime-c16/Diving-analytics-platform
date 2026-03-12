@@ -9,6 +9,7 @@ const initialDashboard = response.ok ? await response.json() : null;
 ---
 
 <AppLayout
+  breadcrumbs={[{ label: "Overview" }]}
   title="Overview"
   description="Track competition volume, review top athlete outcomes, and move directly into competition, athlete, and club analysis workspaces."
   pathname="/"
