@@ -1,0 +1,15 @@
+---
+import { AthleteDirectoryView } from "../components/AthleteDirectoryView";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout
+  title="Athletes"
+  description="Search the athlete directory, compare profile depth, and open a dedicated diver workspace with performance, competition, and dive history."
+  pathname="/athletes"
+>
+  <script is:inline>
+    {`const legacyId = new URLSearchParams(window.location.search).get("id"); if (legacyId) window.location.replace("/athletes/" + legacyId);`}
+  </script>
+  <AthleteDirectoryView client:load />
+</AppLayout>
