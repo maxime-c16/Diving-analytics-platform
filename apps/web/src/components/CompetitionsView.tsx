@@ -395,7 +395,7 @@ export function CompetitionsView() {
         <>
           <section className="metrics">
             <div className="metric">
-              <span>Meet</span>
+              <span>Competition</span>
               <strong>{detail.competition.name}</strong>
             </div>
             <div className="metric">
@@ -413,7 +413,7 @@ export function CompetitionsView() {
           </section>
 
           <section className="panel">
-            <h2>Meet analysis workspace</h2>
+            <h2>Competition workspace</h2>
             <div className="analysis-layout">
               <div className="analysis-rail">
                 <div className="rail-block">
@@ -441,7 +441,7 @@ export function CompetitionsView() {
                 </div>
 
                 <div className="rail-block">
-                  <div className="rail-label">Meet metadata</div>
+                  <div className="rail-label">Competition details</div>
                   <div className="stack compact-stack">
                     <div className="list-item compact-item">
                       <strong>{detail.competition.location || "Location not recorded"}</strong>

@@ -6,13 +6,13 @@ type ImportResult = {
   message: string;
   competitionId: number;
   extraction: {
-    competition_name: string;
+    competitionName: string;
     date: string | null;
     location: string | null;
     summary: {
-      total_dives: number;
-      total_athletes: number;
-      total_events: number;
+      totalDives: number;
+      totalAthletes: number;
+      totalEvents: number;
       events: string[];
     };
   };
@@ -91,19 +91,19 @@ export function UploadPanel() {
           <section className="metrics">
             <div className="metric">
               <span>Competition</span>
-              <strong>{result.extraction.competition_name}</strong>
+              <strong>{result.extraction.competitionName}</strong>
             </div>
             <div className="metric">
               <span>Events</span>
-              <strong>{result.extraction.summary.total_events}</strong>
+              <strong>{result.extraction.summary.totalEvents}</strong>
             </div>
             <div className="metric">
               <span>Athletes</span>
-              <strong>{result.extraction.summary.total_athletes}</strong>
+              <strong>{result.extraction.summary.totalAthletes}</strong>
             </div>
             <div className="metric">
               <span>Dives</span>
-              <strong>{result.extraction.summary.total_dives}</strong>
+              <strong>{result.extraction.summary.totalDives}</strong>
             </div>
           </section>
 
@@ -118,7 +118,7 @@ export function UploadPanel() {
             </div>
             <div className="toolbar" style={{ marginTop: 16 }}>
               <a className="button secondary" href={`/competitions?id=${result.competitionId}`}>
-                Open meet workspace
+                Open competition workspace
               </a>
             </div>
           </section>

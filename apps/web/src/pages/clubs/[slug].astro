@@ -15,7 +15,7 @@ const { slug } = Astro.params;
 
 <AppLayout
   title="Club Profile"
-  description="A club-level workspace with roster coverage, meet-level deep links, recent dives, and direct navigation into athlete profiles."
+  description="A club-level workspace with roster coverage, competition-level deep links, recent dives, and direct navigation into athlete profiles."
   pathname="/clubs"
 >
   <ClubProfileView clubSlug={slug || ""} client:load />

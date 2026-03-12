@@ -66,13 +66,18 @@ async function handlePdfIngestion(request: Request) {
   const detail = getCompetitionDetail(competitionId);
 
   return json({
-    message: "PDF imported",
+    message: "Result sheet ingested",
     competitionId,
     extraction: {
-      competition_name: extraction.competition_name,
+      competitionName: extraction.competition_name,
       date: normalizeCompetitionDate(extraction.date),
       location: extraction.location,
-      summary: extraction.summary,
+      summary: {
+        totalDives: extraction.summary.total_dives,
+        totalAthletes: extraction.summary.total_athletes,
+        totalEvents: extraction.summary.total_events,
+        events: extraction.summary.events,
+      },
       method: extraction.method,
     },
     competition: detail?.competition,
@@ -93,7 +98,7 @@ const server = Bun.serve({
       if (pathname === "/health") {
         return json({
           status: "ok",
-          service: "diving-analytics-api-v2",
+          service: "diving-analytics-api",
           extractorPath,
         });
       }

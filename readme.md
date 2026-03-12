@@ -21,7 +21,7 @@ Endpoints:
 - API: `http://localhost:4101`
 
 ### Core Workflows
-- Ingest a meet result sheet from `/upload`
+- Ingest a competition result sheet from `/upload`
 - Review competition, event, athlete, and club workspaces
 - Trace dive-level scoring, including dropped-note logic under official World Aquatics judging rules
 - Navigate between competition context, athlete profiles, and club profiles without losing focus state

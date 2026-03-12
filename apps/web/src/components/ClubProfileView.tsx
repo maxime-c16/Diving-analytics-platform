@@ -33,8 +33,8 @@ type ClubDetail = {
     competitionCount: number;
     diveCount: number;
     bestTotal: number | null;
-    lastCompetitionDate: string | null;
-    lastCompetitionName: string | null;
+    latestCompetitionDate: string | null;
+    latestCompetitionName: string | null;
   }>;
   eventTypeStats: Array<{
     eventFamily: string;
@@ -43,11 +43,11 @@ type ClubDetail = {
     appearanceCount: number;
     athleteCount: number;
     bestTotal: number | null;
-    lastCompetitionDate: string | null;
-    lastCompetitionId: number | null;
-    lastCompetitionName: string | null;
-    lastEventName: string | null;
-    lastEntryId: number | null;
+    latestCompetitionDate: string | null;
+    latestCompetitionId: number | null;
+    latestCompetitionName: string | null;
+    latestEventName: string | null;
+    latestEntryId: number | null;
   }>;
   topResults: Array<{
     competitionId: number;
@@ -149,7 +149,7 @@ export function ClubProfileView(props: { clubSlug: string }) {
         <div>
           <h2>{detail.club.name}</h2>
           <div className="profile-meta-row">
-            <span>{detail.club.athleteCount} licensed athletes</span>
+            <span>{detail.club.athleteCount} roster athletes</span>
             <span>{detail.club.competitionCount} competitions</span>
             <span>{detail.club.diveCount} dives logged</span>
             <span>{detail.club.latestCompetitionDate || "Date not recorded"}</span>
@@ -244,7 +244,7 @@ export function ClubProfileView(props: { clubSlug: string }) {
 
       <section className="panel">
         <div className="section-head">
-          <h2>Licensed athletes</h2>
+          <h2>Athlete roster</h2>
           <span className="muted">Direct links to full athlete profiles</span>
         </div>
         <table className="table">
@@ -270,8 +270,8 @@ export function ClubProfileView(props: { clubSlug: string }) {
                 <td>{athlete.diveCount}</td>
                 <td>{formatScore(athlete.bestTotal)}</td>
                 <td>
-                  <strong>{athlete.lastCompetitionName || "n/a"}</strong>
-                  <div className="muted">{athlete.lastCompetitionDate || "Date not recorded"}</div>
+                  <strong>{athlete.latestCompetitionName || "n/a"}</strong>
+                  <div className="muted">{athlete.latestCompetitionDate || "Date not recorded"}</div>
                 </td>
               </tr>
             ))}
@@ -303,16 +303,16 @@ export function ClubProfileView(props: { clubSlug: string }) {
                   <td>{stat.appearanceCount}</td>
                   <td>{formatScore(stat.bestTotal)}</td>
                   <td>
-                    {stat.lastCompetitionId ? (
+                    {stat.latestCompetitionId ? (
                       <a
                         href={competitionFocusHref({
-                          competitionId: stat.lastCompetitionId,
-                          eventName: stat.lastEventName,
-                          entryId: stat.lastEntryId,
+                          competitionId: stat.latestCompetitionId,
+                          eventName: stat.latestEventName,
+                          entryId: stat.latestEntryId,
                           view: "athlete",
                         })}
                       >
-                        {stat.lastCompetitionName}
+                        {stat.latestCompetitionName}
                       </a>
                     ) : (
                       "n/a"

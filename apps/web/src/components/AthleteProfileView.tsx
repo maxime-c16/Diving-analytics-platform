@@ -14,7 +14,7 @@ type AthleteProfile = {
     diveCount: number;
     averageDiveScore: number | null;
     bestTotal: number | null;
-    lastCompetitionDate: string | null;
+    latestCompetitionDate: string | null;
     recentFormAverage: number | null;
     mostUsedDiveCode: string | null;
   };
@@ -45,11 +45,11 @@ type AthleteProfile = {
     bestTotal: number | null;
     bestDive: number | null;
     competitionCount: number;
-    lastCompetitionDate: string | null;
-    lastCompetitionId: number | null;
-    lastCompetitionName: string | null;
-    lastEventName: string | null;
-    lastEntryId: number | null;
+    latestCompetitionDate: string | null;
+    latestCompetitionId: number | null;
+    latestCompetitionName: string | null;
+    latestEventName: string | null;
+    latestEntryId: number | null;
   }>;
   bestDiveByEventType: Array<{
     eventFamily: string;
@@ -214,7 +214,7 @@ export function AthleteProfileView(props: { athleteId: string }) {
           <h2>Profile snapshot</h2>
           <div className="stack compact-stack">
             <div className="list-item compact-item">
-              <strong>Last competition</strong>
+              <strong>Latest competition</strong>
               <div className="muted">
                 {detail.latestCompetition
                   ? `${detail.latestCompetition.competitionName} · ${detail.latestCompetition.eventName || "Event not recorded"}`
@@ -281,7 +281,7 @@ export function AthleteProfileView(props: { athleteId: string }) {
               <th>Best total</th>
               <th>Best dive</th>
               <th>Appearances</th>
-              <th>Latest result</th>
+              <th>Latest competition</th>
             </tr>
           </thead>
           <tbody>
@@ -300,15 +300,15 @@ export function AthleteProfileView(props: { athleteId: string }) {
                   </td>
                   <td>{stat.competitionCount}</td>
                   <td>
-                    {stat.lastCompetitionId ? (
+                    {stat.latestCompetitionId ? (
                       <a
                         href={competitionFocusHref({
-                          competitionId: stat.lastCompetitionId,
-                          eventName: stat.lastEventName,
-                          entryId: stat.lastEntryId,
+                          competitionId: stat.latestCompetitionId,
+                          eventName: stat.latestEventName,
+                          entryId: stat.latestEntryId,
                         })}
                       >
-                        {stat.lastCompetitionName}
+                        {stat.latestCompetitionName}
                       </a>
                     ) : (
                       "n/a"
@@ -330,7 +330,7 @@ export function AthleteProfileView(props: { athleteId: string }) {
                 <th>Partner</th>
                 <th>Best total</th>
                 <th>Appearances</th>
-                <th>Latest meet</th>
+                <th>Latest competition</th>
               </tr>
             </thead>
             <tbody>

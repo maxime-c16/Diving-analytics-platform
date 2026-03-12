@@ -405,8 +405,8 @@ export function getClubDetail(slug: string) {
         COUNT(DISTINCT e.competition_id) AS competitionCount,
         COUNT(DISTINCT d.id) AS diveCount,
         ROUND(MAX(d.cumulative_score), 2) AS bestTotal,
-        MAX(c.date) AS lastCompetitionDate,
-        MIN(c.name) AS lastCompetitionName
+        MAX(c.date) AS latestCompetitionDate,
+        MIN(c.name) AS latestCompetitionName
       FROM athletes a
       LEFT JOIN entry_members em ON em.athlete_id = a.id
       LEFT JOIN entries e ON e.id = em.entry_id
@@ -481,8 +481,8 @@ export function getClubDetail(slug: string) {
       competitionCount: row.competitionCount,
       diveCount: row.diveCount,
       bestTotal: row.bestTotal,
-      lastCompetitionDate: normalizeCompetitionDate(row.lastCompetitionDate),
-      lastCompetitionName: row.lastCompetitionName,
+      latestCompetitionDate: normalizeCompetitionDate(row.latestCompetitionDate),
+      latestCompetitionName: row.latestCompetitionName,
     }))
     .sort((left, right) => (right.bestTotal || 0) - (left.bestTotal || 0) || left.athleteName.localeCompare(right.athleteName));
 
@@ -546,11 +546,11 @@ export function getClubDetail(slug: string) {
           appearanceCount: 0,
           athleteCount: new Set<number>(),
           bestTotal: null as number | null,
-          lastCompetitionDate: null as string | null,
-          lastCompetitionId: null as number | null,
-          lastCompetitionName: null as string | null,
-          lastEventName: null as string | null,
-          lastEntryId: null as number | null,
+          latestCompetitionDate: null as string | null,
+          latestCompetitionId: null as number | null,
+          latestCompetitionName: null as string | null,
+          latestEventName: null as string | null,
+          latestEntryId: null as number | null,
         };
 
       current.appearanceCount += 1;
@@ -562,12 +562,12 @@ export function getClubDetail(slug: string) {
       if (typeof entry.finalTotal === "number") {
         current.bestTotal = Math.max(current.bestTotal || 0, entry.finalTotal);
       }
-      if (toTimestamp(entry.competitionDate) >= toTimestamp(current.lastCompetitionDate)) {
-        current.lastCompetitionDate = entry.competitionDate;
-        current.lastCompetitionId = entry.competitionId;
-        current.lastCompetitionName = entry.competitionName;
-        current.lastEventName = entry.eventName;
-        current.lastEntryId = entry.entryId;
+      if (toTimestamp(entry.competitionDate) >= toTimestamp(current.latestCompetitionDate)) {
+        current.latestCompetitionDate = entry.competitionDate;
+        current.latestCompetitionId = entry.competitionId;
+        current.latestCompetitionName = entry.competitionName;
+        current.latestEventName = entry.eventName;
+        current.latestEntryId = entry.entryId;
       }
 
       map.set(family.key, current);
@@ -825,11 +825,11 @@ export function getAthleteDetail(id: number) {
           bestTotal: null as number | null,
           bestDive: null as number | null,
           competitionCount: 0,
-          lastCompetitionDate: null as string | null,
-          lastCompetitionId: null as number | null,
-          lastCompetitionName: null as string | null,
-          lastEventName: null as string | null,
-          lastEntryId: null as number | null,
+          latestCompetitionDate: null as string | null,
+          latestCompetitionId: null as number | null,
+          latestCompetitionName: null as string | null,
+          latestEventName: null as string | null,
+          latestEntryId: null as number | null,
         };
 
       current.bestTotal =
@@ -841,12 +841,12 @@ export function getAthleteDetail(id: number) {
           ? Math.max(current.bestDive || 0, dive.finalScore)
           : current.bestDive;
 
-      if (toTimestamp(dive.competitionDate) >= toTimestamp(current.lastCompetitionDate)) {
-        current.lastCompetitionDate = dive.competitionDate;
-        current.lastCompetitionId = dive.competitionId;
-        current.lastCompetitionName = dive.competitionName;
-        current.lastEventName = dive.eventName;
-        current.lastEntryId = dive.entryId;
+      if (toTimestamp(dive.competitionDate) >= toTimestamp(current.latestCompetitionDate)) {
+        current.latestCompetitionDate = dive.competitionDate;
+        current.latestCompetitionId = dive.competitionId;
+        current.latestCompetitionName = dive.competitionName;
+        current.latestEventName = dive.eventName;
+        current.latestEntryId = dive.entryId;
       }
 
       map.set(family.key, current);
@@ -957,7 +957,7 @@ export function getAthleteDetail(id: number) {
         totalsByCompetition.length > 0
           ? Math.max(...totalsByCompetition.map((row: any) => Number(row.finalTotal || 0)))
           : null,
-      lastCompetitionDate: latestCompetition?.competitionDate || null,
+      latestCompetitionDate: latestCompetition?.competitionDate || null,
       recentFormAverage,
       mostUsedDiveCode: mostUsedDiveCode?.[0] || null,
     },

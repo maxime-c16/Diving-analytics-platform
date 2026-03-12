@@ -75,7 +75,7 @@ export function ClubDirectoryView() {
           <h2>Club directory</h2>
           <p className="directory-note">
             Review roster depth, recent competition presence, podium activity, and direct links into athlete
-            and meet workspaces.
+            and competition workspaces.
           </p>
         </div>
         <div className="directory-hero-stats">
