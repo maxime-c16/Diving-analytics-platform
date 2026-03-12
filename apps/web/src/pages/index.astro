@@ -1,0 +1,12 @@
+---
+import { DashboardView } from "../components/DashboardView";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout
+  title="Overview"
+  description="Track competition volume, review top athlete outcomes, and move directly into competition, athlete, and club analysis workspaces."
+  pathname="/"
+>
+  <DashboardView client:load />
+</AppLayout>

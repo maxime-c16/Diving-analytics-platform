@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OCR Extraction Result",
+  "description": "Output schema from worker PDF OCR processing",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether extraction was successful"
+    },
+    "competition_name": {
+      "type": ["string", "null"],
+      "description": "Extracted competition name"
+    },
+    "event_type": {
+      "type": ["string", "null"],
+      "description": "Primary event type (3m, 10m, HV, etc.)"
+    },
+    "date": {
+      "type": ["string", "null"],
+      "description": "Competition date in original format"
+    },
+    "location": {
+      "type": ["string", "null"],
+      "description": "Competition venue/location"
+    },
+    "dives": {
+      "type": "array",
+      "description": "Array of extracted dive records",
+      "items": {
+        "$ref": "#/definitions/ExtractedDive"
+      }
+    },
+    "errors": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      },
+      "description": "Parsing errors encountered"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Extraction confidence score (0.0-1.0)"
+    },
+    "raw_text_length": {
+      "type": "integer",
+      "description": "Length of raw OCR text extracted"
+    },
+    "detected_heights": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["1m", "3m", "5m", "7.5m", "10m"]
+      },
+      "description": "Heights detected in the competition"
+    },
+    "events_detected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Event names detected (e.g., 'Elite - Dames - 3m')"
+    },
+    "has_multiple_heights": {
+      "type": "boolean",
+      "description": "Whether multiple diving heights were detected"
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "total_dives": { "type": "integer" },
+        "unique_dive_codes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "unique_athletes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "athletes_found": { "type": "integer" },
+        "unknown_athletes": { "type": "integer" },
+        "round_numbers": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "events": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "required": ["success", "dives", "confidence"],
+  "definitions": {
+    "ExtractedDive": {
+      "type": "object",
+      "properties": {
+        "athlete_name": {
+          "type": "string",
+          "description": "Athlete full name"
+        },
+        "dive_code": {
+          "type": "string",
+          "pattern": "^[1-6]\\d{2,3}[A-Da-d]$",
+          "description": "Dive code (e.g., 101A, 5231D)"
+        },
+        "round_number": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Round/dive number in sequence"
+        },
+        "judge_scores": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10,
+            "multipleOf": 0.5
+          },
+          "minItems": 5,
+          "maxItems": 7,
+          "description": "Judge scores (5-7 values, 0-10, 0.5 increments)"
+        },
+        "difficulty": {
+          "type": ["number", "null"],
+          "minimum": 1.0,
+          "maximum": 4.5,
+          "description": "Difficulty (DD) value"
+        },
+        "final_score": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 200,
+          "description": "Final score for this dive"
+        },
+        "rank": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Athlete rank in competition"
+        },
+        "country": {
+          "type": ["string", "null"],
+          "description": "Country code or club name"
+        },
+        "event_name": {
+          "type": ["string", "null"],
+          "description": "Event name (e.g., 'Elite - Dames - 3m')"
+        },
+        "height": {
+          "type": ["string", "null"],
+          "enum": ["1m", "3m", "5m", "7.5m", "10m", null],
+          "description": "Diving height for this dive"
+        }
+      },
+      "required": ["athlete_name", "dive_code", "round_number"]
+    }
+  }
+}

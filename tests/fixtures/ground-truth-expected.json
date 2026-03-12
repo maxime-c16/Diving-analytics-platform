@@ -1,0 +1,499 @@
+{
+  "metadata": {
+    "pdfFileName": "20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf",
+    "description": "Championnats Île-de-France Hiver 2025 - Springboard 3m and High Diving",
+    "extractedDate": "2025-11-27",
+    "verificationNotes": "Manually verified against PDF extraction. Multiple athletes per event verified."
+  },
+  "events": [
+    {
+      "name": "Jeunes - Garçons Minimes B - 3m",
+      "height": "3m",
+      "type": "springboard",
+      "totalRounds": 9,
+      "athletes": [
+        {
+          "rank": 1,
+          "firstName": "Camille",
+          "lastName": "ROUFFIAC",
+          "birthYear": "2011",
+          "club": "Kingfisher Club Plongeon Montr",
+          "finalTotalPoints": 137.95,
+          "dives": [
+            {
+              "roundNumber": 1,
+              "diveCode": "101C",
+              "difficulty": 1.4,
+              "judgeScores": [6.0, 4.5, 5.0, 5.0, 5.0],
+              "divePoints": 21.00,
+              "runningTotal": 21.00
+            },
+            {
+              "roundNumber": 2,
+              "diveCode": "401C",
+              "difficulty": 1.3,
+              "judgeScores": [3.5, 2.5, 3.0, 3.0, 3.0],
+              "divePoints": 11.70,
+              "runningTotal": 32.70
+            },
+            {
+              "roundNumber": 3,
+              "diveCode": "201A",
+              "difficulty": 1.9,
+              "judgeScores": [2.5, 1.5, 2.5, 2.0, 1.5],
+              "divePoints": 11.40,
+              "runningTotal": 44.10
+            },
+            {
+              "roundNumber": 4,
+              "diveCode": "302C",
+              "difficulty": 1.7,
+              "judgeScores": [5.0, 4.5, 4.5, 4.5, 5.0],
+              "divePoints": 23.80,
+              "runningTotal": 67.90
+            },
+            {
+              "roundNumber": 5,
+              "diveCode": "5211A",
+              "difficulty": 2.0,
+              "judgeScores": [0.0, 0.0, 0.0, 0.0, 0.0],
+              "divePoints": 0.00,
+              "runningTotal": 67.90,
+              "penalty": 1
+            },
+            {
+              "roundNumber": 6,
+              "diveCode": "202A",
+              "difficulty": 1.8,
+              "judgeScores": [1.5, 3.5, 1.5, 2.0, 1.0],
+              "divePoints": 9.00,
+              "runningTotal": 76.90
+            },
+            {
+              "roundNumber": 7,
+              "diveCode": "5121D",
+              "difficulty": 1.8,
+              "judgeScores": [1.5, 2.5, 3.5, 3.5, 3.0],
+              "divePoints": 16.20,
+              "runningTotal": 93.10
+            },
+            {
+              "roundNumber": 8,
+              "diveCode": "103B",
+              "difficulty": 1.6,
+              "judgeScores": [4.5, 2.5, 4.0, 4.0, 4.0],
+              "divePoints": 19.20,
+              "runningTotal": 112.30
+            },
+            {
+              "roundNumber": 9,
+              "diveCode": "403C",
+              "difficulty": 1.9,
+              "judgeScores": [5.0, 4.5, 4.5, 4.5, 4.5],
+              "divePoints": 25.65,
+              "runningTotal": 137.95
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Elite - Dames - 3m",
+      "height": "3m",
+      "type": "springboard",
+      "totalRounds": 5,
+      "athletes": [
+        {
+          "rank": 1,
+          "firstName": "Fanny",
+          "lastName": "BOUVET",
+          "birthYear": "1994",
+          "club": "Kingfisher Club Plongeon Montr",
+          "finalTotalPoints": 199.60,
+          "dives": [
+            {
+              "roundNumber": 1,
+              "diveCode": "103B",
+              "difficulty": 1.6,
+              "judgeScores": [7.0, 6.5, 7.0, 6.5, 6.5],
+              "divePoints": 32.00,
+              "runningTotal": 32.00
+            },
+            {
+              "roundNumber": 2,
+              "diveCode": "403B",
+              "difficulty": 2.1,
+              "judgeScores": [6.5, 7.5, 7.5, 6.5, 7.0],
+              "divePoints": 44.10,
+              "runningTotal": 76.10
+            },
+            {
+              "roundNumber": 3,
+              "diveCode": "201B",
+              "difficulty": 1.8,
+              "judgeScores": [7.0, 7.5, 7.0, 7.0, 6.0],
+              "divePoints": 37.80,
+              "runningTotal": 113.90
+            },
+            {
+              "roundNumber": 4,
+              "diveCode": "301B",
+              "difficulty": 1.9,
+              "judgeScores": [7.0, 7.0, 8.0, 8.0, 8.0],
+              "divePoints": 43.70,
+              "runningTotal": 157.60
+            },
+            {
+              "roundNumber": 5,
+              "diveCode": "5231D",
+              "difficulty": 2.0,
+              "judgeScores": [7.5, 6.5, 7.5, 7.0, 6.5],
+              "divePoints": 42.00,
+              "runningTotal": 199.60
+            }
+          ]
+        },
+        {
+          "rank": 2,
+          "firstName": "Bérénice",
+          "lastName": "LAIR",
+          "birthYear": "2001",
+          "club": "Kingfisher Club Plongeon Montr",
+          "finalTotalPoints": 157.65,
+          "dives": [
+            {
+              "roundNumber": 1,
+              "diveCode": "301B",
+              "difficulty": 1.9,
+              "judgeScores": [4.5, 5.0, 3.5, 4.0, 3.5],
+              "divePoints": 22.80,
+              "runningTotal": 22.80
+            },
+            {
+              "roundNumber": 2,
+              "diveCode": "5211A",
+              "difficulty": 2.0,
+              "judgeScores": [7.0, 7.5, 7.0, 6.5, 7.5],
+              "divePoints": 43.00,
+              "runningTotal": 65.80
+            },
+            {
+              "roundNumber": 3,
+              "diveCode": "403B",
+              "difficulty": 2.1,
+              "judgeScores": [6.5, 5.0, 5.5, 6.0, 5.0],
+              "divePoints": 34.65,
+              "runningTotal": 100.45
+            },
+            {
+              "roundNumber": 4,
+              "diveCode": "105C",
+              "difficulty": 2.2,
+              "judgeScores": [3.0, 1.5, 3.5, 3.0, 2.5],
+              "divePoints": 18.70,
+              "runningTotal": 119.15
+            },
+            {
+              "roundNumber": 5,
+              "diveCode": "203B",
+              "difficulty": 2.2,
+              "judgeScores": [6.5, 5.5, 6.0, 6.0, 5.5],
+              "divePoints": 38.50,
+              "runningTotal": 157.65
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Elite - Messieurs - 3m",
+      "height": "3m",
+      "type": "springboard",
+      "totalRounds": 6,
+      "athletes": [
+        {
+          "rank": 1,
+          "firstName": "Raphaël",
+          "lastName": "VIET TRIEM TONG",
+          "birthYear": "1991",
+          "club": "Kingfisher Club Plongeon Montr",
+          "finalTotalPoints": 157.50,
+          "dives": [
+            {
+              "roundNumber": 1,
+              "diveCode": "101B",
+              "difficulty": 1.5,
+              "judgeScores": [4.0, 4.5, 4.5, 4.0, 4.5],
+              "divePoints": 19.50,
+              "runningTotal": 19.50
+            },
+            {
+              "roundNumber": 2,
+              "diveCode": "103B",
+              "difficulty": 1.6,
+              "judgeScores": [6.0, 5.5, 5.5, 5.5, 5.5],
+              "divePoints": 26.40,
+              "runningTotal": 45.90
+            },
+            {
+              "roundNumber": 3,
+              "diveCode": "5132D",
+              "difficulty": 2.1,
+              "judgeScores": [4.5, 3.5, 4.5, 4.5, 5.0],
+              "divePoints": 28.35,
+              "runningTotal": 74.25
+            },
+            {
+              "roundNumber": 4,
+              "diveCode": "403C",
+              "difficulty": 1.9,
+              "judgeScores": [4.5, 4.0, 4.5, 4.0, 3.5],
+              "divePoints": 23.75,
+              "runningTotal": 98.00
+            },
+            {
+              "roundNumber": 5,
+              "diveCode": "202A",
+              "difficulty": 1.8,
+              "judgeScores": [5.0, 6.0, 5.0, 6.0, 7.0],
+              "divePoints": 30.60,
+              "runningTotal": 128.60
+            },
+            {
+              "roundNumber": 6,
+              "diveCode": "302C",
+              "difficulty": 1.7,
+              "judgeScores": [6.0, 6.0, 5.5, 5.0, 5.5],
+              "divePoints": 28.90,
+              "runningTotal": 157.50
+            }
+          ]
+        },
+        {
+          "rank": 6,
+          "firstName": "Maxime",
+          "lastName": "CAUCHY",
+          "birthYear": "2003",
+          "club": "Kingfisher Club Plongeon Montr",
+          "finalTotalPoints": 131.50,
+          "dives": [
+            {
+              "roundNumber": 1,
+              "diveCode": "101B",
+              "difficulty": 1.5,
+              "judgeScores": [5.0, 4.5, 4.5, 4.0, 5.5],
+              "divePoints": 21.00,
+              "runningTotal": 21.00
+            },
+            {
+              "roundNumber": 2,
+              "diveCode": "401B",
+              "difficulty": 1.4,
+              "judgeScores": [5.0, 6.0, 5.0, 6.0, 5.5],
+              "divePoints": 23.10,
+              "runningTotal": 44.10
+            },
+            {
+              "roundNumber": 3,
+              "diveCode": "201C",
+              "difficulty": 1.7,
+              "judgeScores": [5.5, 6.0, 5.5, 4.5, 6.0],
+              "divePoints": 28.90,
+              "runningTotal": 73.00
+            },
+            {
+              "roundNumber": 4,
+              "diveCode": "301C",
+              "difficulty": 1.8,
+              "judgeScores": [4.0, 2.5, 3.5, 3.5, 3.0],
+              "divePoints": 18.00,
+              "runningTotal": 91.00
+            },
+            {
+              "roundNumber": 5,
+              "diveCode": "5211A",
+              "difficulty": 2.0,
+              "judgeScores": [3.0, 2.0, 2.5, 2.5, 2.5],
+              "divePoints": 15.00,
+              "runningTotal": 106.00
+            },
+            {
+              "roundNumber": 6,
+              "diveCode": "103C",
+              "difficulty": 1.5,
+              "judgeScores": [5.5, 6.0, 5.5, 4.5, 6.0],
+              "divePoints": 25.50,
+              "runningTotal": 131.50
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Elite - Dames - HV",
+      "height": "HV",
+      "type": "platform",
+      "totalRounds": 5,
+      "heightsAvailable": ["5m", "7.5m", "10m"],
+      "athletes": [
+        {
+          "rank": 1,
+          "firstName": "Clara",
+          "lastName": "VALROFF",
+          "birthYear": "2001",
+          "club": "Kingfisher Club Plongeon Montr",
+          "finalTotalPoints": 111.70,
+          "dives": [
+            {
+              "roundNumber": 1,
+              "diveCode": "203C",
+              "height": "5m",
+              "difficulty": 2.0,
+              "judgeScores": [2.5, 2.0, 2.0, 2.5, 2.0],
+              "divePoints": 13.00,
+              "runningTotal": 13.00
+            },
+            {
+              "roundNumber": 2,
+              "diveCode": "301C",
+              "height": "5m",
+              "difficulty": 1.6,
+              "judgeScores": [4.5, 4.5, 5.0, 4.5, 5.0],
+              "divePoints": 22.40,
+              "runningTotal": 35.40
+            },
+            {
+              "roundNumber": 3,
+              "diveCode": "103B",
+              "height": "5m",
+              "difficulty": 1.7,
+              "judgeScores": [4.5, 4.5, 4.0, 5.0, 4.5],
+              "divePoints": 22.95,
+              "runningTotal": 58.35
+            },
+            {
+              "roundNumber": 4,
+              "diveCode": "401B",
+              "height": "5m",
+              "difficulty": 1.5,
+              "judgeScores": [6.5, 6.0, 6.0, 6.0, 6.0],
+              "divePoints": 27.00,
+              "runningTotal": 85.35
+            },
+            {
+              "roundNumber": 5,
+              "diveCode": "612B",
+              "height": "5m",
+              "difficulty": 1.7,
+              "judgeScores": [5.0, 4.0, 6.5, 5.0, 5.5],
+              "divePoints": 26.35,
+              "runningTotal": 111.70
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Elite - Messieurs - HV",
+      "height": "HV",
+      "type": "platform",
+      "totalRounds": 6,
+      "heightsAvailable": ["5m", "7.5m", "10m"],
+      "athletes": [
+        {
+          "rank": 1,
+          "firstName": "Guillaume",
+          "lastName": "BREDA",
+          "birthYear": "1990",
+          "club": "Kingfisher Club Plongeon Montr",
+          "finalTotalPoints": 133.90,
+          "dives": [
+            {
+              "roundNumber": 1,
+              "diveCode": "103B",
+              "height": "5m",
+              "difficulty": 1.7,
+              "judgeScores": [5.5, 5.5, 5.5, 5.0, 6.0],
+              "divePoints": 28.05,
+              "runningTotal": 28.05
+            },
+            {
+              "roundNumber": 2,
+              "diveCode": "202A",
+              "height": "5m",
+              "difficulty": 1.7,
+              "judgeScores": [5.0, 4.0, 6.0, 4.5, 4.5],
+              "divePoints": 23.80,
+              "runningTotal": 51.85
+            },
+            {
+              "roundNumber": 3,
+              "diveCode": "401C",
+              "height": "5m",
+              "difficulty": 1.4,
+              "judgeScores": [5.0, 5.0, 4.5, 5.0, 5.0],
+              "divePoints": 21.00,
+              "runningTotal": 72.85
+            },
+            {
+              "roundNumber": 4,
+              "diveCode": "302C",
+              "height": "5m",
+              "difficulty": 1.6,
+              "judgeScores": [4.5, 4.5, 5.0, 5.0, 5.0],
+              "divePoints": 23.20,
+              "runningTotal": 96.05
+            },
+            {
+              "roundNumber": 5,
+              "diveCode": "612B",
+              "height": "5m",
+              "difficulty": 1.7,
+              "judgeScores": [2.5, 3.0, 3.0, 4.0, 2.0],
+              "divePoints": 14.45,
+              "runningTotal": 110.50
+            },
+            {
+              "roundNumber": 6,
+              "diveCode": "5121D",
+              "height": "7.5m",
+              "difficulty": 1.8,
+              "judgeScores": [4.5, 4.5, 4.0, 4.0, 5.0],
+              "divePoints": 23.40,
+              "runningTotal": 133.90
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "verificationSamples": [
+    {
+      "athleteName": "Fanny BOUVET",
+      "event": "Elite - Dames - 3m",
+      "checkedFields": ["rank", "diveCode", "judgeScores", "difficulty", "finalScore"],
+      "verifiedCorrect": true,
+      "verificationDate": "2025-11-27"
+    },
+    {
+      "athleteName": "Maxime CAUCHY",
+      "event": "Elite - Messieurs - 3m",
+      "checkedFields": ["rank", "diveCode", "judgeScores", "difficulty", "finalScore"],
+      "verifiedCorrect": true,
+      "verificationDate": "2025-11-27"
+    },
+    {
+      "athleteName": "Guillaume BREDA",
+      "event": "Elite - Messieurs - HV",
+      "checkedFields": ["rank", "diveCode", "judgeScores", "difficulty", "finalScore"],
+      "verifiedCorrect": true,
+      "verificationDate": "2025-11-27"
+    }
+  ],
+  "tolerances": {
+    "finalScore": 0.01,
+    "difficulty": 0,
+    "judgeScores": 0,
+    "diveCode": "exact"
+  }
+}

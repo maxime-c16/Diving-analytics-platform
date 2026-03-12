@@ -1,0 +1,22 @@
+---
+import { AthleteProfileView } from "../../components/AthleteProfileView";
+import AppLayout from "../../layouts/AppLayout.astro";
+
+export async function getStaticPaths() {
+  const response = await fetch("http://127.0.0.1:4101/athletes");
+  const athletes = (await response.json()) as Array<{ id: number }>;
+  return athletes.map((athlete) => ({
+    params: { id: String(athlete.id) },
+  }));
+}
+
+const { id } = Astro.params;
+---
+
+<AppLayout
+  title="Diver Profile"
+  description="A dedicated athlete workspace that stays connected to competitions, event families, synchro partners, and dive-level performance."
+  pathname="/athletes"
+>
+  <AthleteProfileView athleteId={id || ""} client:load />
+</AppLayout>

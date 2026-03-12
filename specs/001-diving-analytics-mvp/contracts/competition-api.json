@@ -1,0 +1,233 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Competition API Schema",
+  "description": "Backend API contracts for competition data endpoints",
+  "definitions": {
+    "Competition": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "date": { "type": ["string", "null"], "format": "date-time" },
+        "location": { "type": ["string", "null"] },
+        "eventType": { "type": ["string", "null"] }
+      },
+      "required": ["id", "name"]
+    },
+    "CompetitionStatistics": {
+      "type": "object",
+      "properties": {
+        "totalAthletes": { "type": "integer", "minimum": 0 },
+        "totalDives": { "type": "integer", "minimum": 0 },
+        "highestScore": { "type": "number" },
+        "lowestScore": { "type": "number" },
+        "averageScore": { "type": "number" },
+        "rounds": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["totalAthletes", "totalDives", "highestScore", "lowestScore", "averageScore", "rounds"]
+    },
+    "DiveResult": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "roundNumber": { "type": "integer", "minimum": 1 },
+        "diveCode": { "type": "string", "pattern": "^[1-6]\\d{2,3}[A-D]$" },
+        "difficulty": { "type": "number", "minimum": 1.0, "maximum": 4.5 },
+        "judgeScores": {
+          "type": ["array", "null"],
+          "items": { "type": "number", "minimum": 0, "maximum": 10 },
+          "minItems": 5,
+          "maxItems": 7
+        },
+        "finalScore": { "type": "number", "minimum": 0 },
+        "rank": { "type": ["integer", "null"] },
+        "eventName": { "type": ["string", "null"] }
+      },
+      "required": ["id", "roundNumber", "diveCode", "difficulty", "finalScore"]
+    },
+    "AthleteResult": {
+      "type": "object",
+      "properties": {
+        "athlete": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer" },
+            "name": { "type": "string" },
+            "country": { "type": ["string", "null"] }
+          },
+          "required": ["id", "name"]
+        },
+        "rank": { "type": "integer", "minimum": 1 },
+        "totalScore": { "type": "number", "minimum": 0 },
+        "averageScore": { "type": "number", "minimum": 0 },
+        "diveCount": { "type": "integer", "minimum": 0 },
+        "dives": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DiveResult" }
+        }
+      },
+      "required": ["athlete", "rank", "totalScore", "averageScore", "diveCount", "dives"]
+    },
+    "RoundDive": {
+      "type": "object",
+      "description": "Dive data for round view - includes athlete info",
+      "properties": {
+        "id": { "type": "integer" },
+        "athleteName": { "type": "string" },
+        "athleteCountry": { "type": ["string", "null"] },
+        "diveCode": { "type": "string" },
+        "difficulty": { "type": "number" },
+        "judgeScores": {
+          "type": ["array", "null"],
+          "items": { "type": "number" }
+        },
+        "finalScore": { "type": "number" },
+        "rank": { "type": ["integer", "null"] },
+        "eventName": { "type": ["string", "null"] }
+      },
+      "required": ["id", "athleteName", "diveCode", "difficulty", "finalScore"]
+    },
+    "RoundData": {
+      "type": "object",
+      "properties": {
+        "roundNumber": { "type": "integer", "minimum": 1 },
+        "diveCount": { "type": "integer", "minimum": 0 },
+        "averageScore": { "type": "number" },
+        "highestScore": { "type": "number" },
+        "lowestScore": { "type": "number" },
+        "dives": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RoundDive" }
+        }
+      },
+      "required": ["roundNumber", "diveCount", "averageScore", "highestScore", "lowestScore", "dives"]
+    },
+    "EventData": {
+      "type": "object",
+      "properties": {
+        "statistics": { "$ref": "#/definitions/CompetitionStatistics" },
+        "athletes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AthleteResult" }
+        },
+        "rounds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RoundData" }
+        }
+      },
+      "required": ["statistics", "athletes", "rounds"]
+    },
+    "CompetitionData": {
+      "type": "object",
+      "description": "Full competition data response",
+      "properties": {
+        "competition": { "$ref": "#/definitions/Competition" },
+        "statistics": { "$ref": "#/definitions/CompetitionStatistics" },
+        "athletes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AthleteResult" }
+        },
+        "rounds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RoundData" }
+        },
+        "hasMultipleEvents": { "type": "boolean" },
+        "eventNames": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "events": {
+          "type": ["object", "null"],
+          "additionalProperties": { "$ref": "#/definitions/EventData" },
+          "description": "Event-specific data keyed by event name"
+        }
+      },
+      "required": ["competition", "statistics", "athletes", "rounds", "hasMultipleEvents", "eventNames"]
+    },
+    "IngestionLog": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string", "enum": ["csv", "pdf"] },
+        "fileSize": { "type": "integer" },
+        "status": { 
+          "type": "string", 
+          "enum": ["pending", "processing", "completed", "failed", "partial"] 
+        },
+        "totalRows": { "type": "integer" },
+        "processedRows": { "type": "integer" },
+        "failedRows": { "type": "integer" },
+        "competitionId": { "type": ["integer", "null"] },
+        "errorMessage": { "type": ["string", "null"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "startedAt": { "type": ["string", "null"], "format": "date-time" },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["id", "fileName", "fileType", "status"]
+    },
+    "RowError": {
+      "type": "object",
+      "properties": {
+        "row": { "type": "integer" },
+        "error": { "type": "string" },
+        "data": { "type": ["object", "null"] }
+      },
+      "required": ["row", "error"]
+    }
+  },
+  "endpoints": {
+    "GET /api/ingestion/competitions/:id": {
+      "description": "Get full competition data for analysis panel",
+      "response": { "$ref": "#/definitions/CompetitionData" }
+    },
+    "GET /api/ingestion/status/:id": {
+      "description": "Get ingestion job status",
+      "response": { "$ref": "#/definitions/IngestionLog" }
+    },
+    "GET /api/ingestion/status/:id/errors": {
+      "description": "Get ingestion job errors",
+      "response": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/RowError" }
+          }
+        }
+      }
+    },
+    "POST /api/ingestion/import-pdf": {
+      "description": "Import extracted PDF data",
+      "request": {
+        "type": "object",
+        "properties": {
+          "competitionName": { "type": "string" },
+          "competitionDate": { "type": ["string", "null"] },
+          "location": { "type": ["string", "null"] },
+          "eventType": { "type": "string" },
+          "dives": { 
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "sourceJobId": { "type": "string" }
+        },
+        "required": ["competitionName", "eventType", "dives", "sourceJobId"]
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "ingestionId": { "type": "string" },
+          "competitionId": { "type": "integer" },
+          "processedCount": { "type": "integer" },
+          "failedCount": { "type": "integer" },
+          "errors": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/RowError" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+N° HauteurCoe J1 J2 J3 J4 J5 J6 J7 Cumul Points Points Pen
+1 Guillaume BREDA (1990) -- Kingfisher Club Plongeon Montr
+103B saut périlleux et demi avant 5 17 55 5,5 55 50 6,0 16,5 28,05 28,05
+202A saut périlleux arrière 5 1,7 50 4,0 60 45 4,5 14,0 23,80 51,85
+401C plongeon retourné 5 14 50 5,0 4,5 50 5,0 15,0 21,00 72,85
+302C saut périlleux renversé 5 16 45 45 50 50 5,0 14,5 23,20 96,05
+612B équilibre et saut périlleux avant 5 1,7 2,5 3,0 3,0 4,0 2,0 8,5 14,45 110,50
+5121D saut périlleux avant avec % vrille 7,5 1,8 45 4,5 4,0 4,0 5,0 13,0 23,40 133,90
+2 Manuel POTOR (1989) -- Paris Aquatique
+103B saut périlleux et demi avant 5 17 55 55 50 55 4,5 16,0 27,20 27,20
+203C saut périlleux et demi arrière 5 2,0 3,0 3,0 1,0 2,0 1,5 6,5 13,00 40,20
+301C plongeon renversé 5 16 40 4,0 4,0 4,0 4,0 12,0 19,20 59,40
+403C saut périlleux et demi retourné 5 2.2 45 5,0 55 4,5 5,0 14,5 31,90 91,30
+5132D saut périlleux et demi avant avec 1 vrille 5 2,2 0,5 1,5 1,0 1,5 1,0 3,5 7,70 99,00
+612B équilibre et saut périlleux avant 5 17 45 40 50 55 4,5 14,0 23,80 122,80
+3 Alexis BERNIER (1996) -- Paris Aquatique
+101C plongeon ordinaire avant 5 1,2 65 6,0 6,5 7,0 5,5 19,0 22,80 22,80
+401C plongeon retourné 5 14 65 6,0 60 65 6,5 19,0 26,60 49,40
+612C équilibre et saut périlleux avant 5 15 50 4,5 45 45 45 13,5 20,25 69,65
+301C plongeon renversé 5 16 60 5,5 6,5 6,0 7,0 18,5 29,60 99,25
+201A plongeon ordinaire arrière 5 1,7 1,0 2,0 1,5 2,5 0,0 4,5 7,65 106,90
+5211A plongeon arrière avec % vrille 5 1,8 1,5 3,5 3,5 2,5 2,0 8,0 14,40 121,30
+4 Karim CHAAF (2000) -- Kingfisher Club Plongeon Montr
+103B saut périlleux et demi avant 5 1,7 50 6,0 5,5 55 6,0 17,0 28,90 28,90
+401B plongeon retourné 7,5 1,4 50 5,0 4,5 5,0 5,0 15,0 21,00 49,90
+5121D saut périlleux avant avec % vrille 10 1,9 40 2,5 40 3,5 3,5 11,0 20,90 70,80
+302B saut périlleux renversé 10 1,9 1,5 2,5 1,5 2,0 1,0 5,0 9,50 80,30
+202A saut périlleux arrière 10 19 50 3,0 55 50 4,5 14,5 27,55 107,85
+612C équilibre et saut périlleux avant 5 1,5 30 3,5 2,0 3,5 2,0 8,5 12,75 120,60
+5 Bertrand PRÉVOST (1988) -- H2024 Plongeon & Natation CAO
+5211A plongeon arrière avec % vrille 5 1,8 2,5 1,0 3,5 3,0 3,5 9,0 16,20 16,20
+401C plongeon retourné 5 14 #55 5,5 50 50 5,5 16,0 22,40 38,60
+103C saut périlleux et demi avant 5 16 55 60 55 65 6,5 18,0 28,80 67,40
+612B équilibre et saut périlleux avant 7,5 1,8 2,5 3,0 2,5 2,0 3,5 8,0 14,40 81,80 2
+201C plongeon ordinaire arrière 5 15 40 4,0 3,0 4,0 4,0 12,0 18,00 99,80
+301C plongeon renversé 5 16 40 4,0 4,5 4,0 4,0 12,0 19,20 119,00
+6 Guillaume BARDOU (1968) -- Kingfisher Club Plongeon Montr
+201A plongeon ordinaire arrière 7,5 1,9 4,0 4,0 1,5 3,5 2,5 10,0 19,00 19,00
+101A plongeon ordinaire avant 75 1,6 40 3,5 45 40 4,5 12,5 20,00 39,00
+612C équilibre et saut périlleux avant 75 #16 45 3,5 3,5 4,0 4,0 11,5 18,40 57,40
+403C saut périlleux et demi retourné 7,5 1,9 2,0 1,5 1,0 1,0 2,5 4,5 8,55 65,95
+5211A plongeon arrière avec % vrille 5 1,8 2,5 2,0 3,0 2,5 2,0 7,0 12,60 78,55
+302C saut périlleux renversé 7,5 1,7 2,0 3,0 2,0 3,0 1,5 7,0 11,90 90,45
+Codes des pénalités : 1 = Plongeon manqué 2 = Faux départ, -2 points 3 = Position d'exécution, 2 points max 4 = Position des bras, 4/2 points max
+https://www.diverecorder.co.uk Page 4/4 18:57, dimanche 23 novembre 2025

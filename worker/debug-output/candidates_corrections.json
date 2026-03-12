@@ -1,0 +1,298 @@
+[
+  {
+    "raw": "101C",
+    "corrected": "101C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "401C",
+    "corrected": "401C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "201A",
+    "corrected": "201A",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "302C",
+    "corrected": "302C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "5211A",
+    "corrected": "5211A",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "202A",
+    "corrected": "202A",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "5121D",
+    "corrected": "5121D",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "103B",
+    "corrected": "103B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "403C",
+    "corrected": "403C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "301C",
+    "corrected": "301C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "103C",
+    "corrected": "103C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "402C",
+    "corrected": "402C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "202C",
+    "corrected": "202C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "403B",
+    "corrected": "403B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "201B",
+    "corrected": "201B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "301B",
+    "corrected": "301B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "5231D",
+    "corrected": "5231D",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "105C",
+    "corrected": "105C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "203B",
+    "corrected": "203B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "203C",
+    "corrected": "203C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "303C",
+    "corrected": "303C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "5132D",
+    "corrected": "5132D",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "201C",
+    "corrected": "201C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "401B",
+    "corrected": "401B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "101B",
+    "corrected": "101B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "301A",
+    "corrected": "301A",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "303B",
+    "corrected": "303B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "405C",
+    "corrected": "405C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "105B",
+    "corrected": "105B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "5141C",
+    "corrected": "5141C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "103A",
+    "corrected": "103A",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "5233D",
+    "corrected": "5233D",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "104C",
+    "corrected": "104C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "612B",
+    "corrected": "612B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "612C",
+    "corrected": "612C",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "302B",
+    "corrected": "302B",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  },
+  {
+    "raw": "101A",
+    "corrected": "101A",
+    "was_corrected": false,
+    "correction_desc": "No correction needed",
+    "valid_after_correction": true,
+    "validation_error": null
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "sourceFile": "20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf",
+    "extractedAt": "2025-11-27T00:00:00Z",
+    "tesseractVersion": "5.x",
+    "tesseractConfig": "--psm 6 --oem 3",
+    "language": "eng+fra",
+    "pageCount": 20,
+    "processingTimeMs": 0
+  },
+  "pages": [
+    {
+      "pageNumber": 1,
+      "rawText": "",
+      "confidence": 0.0,
+      "extractedEvents": [],
+      "extractedAthletes": [],
+      "extractedDives": []
+    }
+  ],
+  "aggregated": {
+    "totalEvents": 0,
+    "totalAthletes": 0,
+    "totalDives": 0,
+    "averageConfidence": 0.0
+  },
+  "ocrErrors": [],
+  "correctionsMade": [],
+  "notes": "Placeholder - run extract_ocr_baseline.py to populate with actual OCR output"
+}

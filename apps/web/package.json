@@ -1,0 +1,25 @@
+{
+  "name": "@diving/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host 0.0.0.0 --port 4100",
+    "build": "astro build",
+    "preview": "astro preview --host 0.0.0.0 --port 4100",
+    "astro": "astro",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/react": "^4.4.1",
+    "astro": "^5.13.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.7",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "playwright": "^1.58.2",
+    "typescript": "^5.9.3"
+  }
+}

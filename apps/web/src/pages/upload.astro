@@ -1,0 +1,12 @@
+---
+import { UploadPanel } from "../components/UploadPanel";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout
+  title="Results Intake"
+  description="Upload official result sheets, extract structured competition data, and open the competition workspace immediately after intake."
+  pathname="/upload"
+>
+  <UploadPanel client:load />
+</AppLayout>

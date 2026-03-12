@@ -1,0 +1,110 @@
+. = . LA
+Championnats Île-de-France 3m et HV Hiver À
+Stade Maurice Thorez 14
+Montreuil
+dimanche 23 novembre 2025 7.0.7.5
+Résultats détaillés
+Jeunes - Garçons Minimes B - 3m
+N° HauteurCoe J1 J2 J3 J4 J5 J6 J7 Cumul Points Points Pen
+1 Camille ROUFFIAC (2011) -- Kingfisher Club Plongeon Montr
+101C plongeon ordinaire avant 3 14 60 4,5 50 50 5,0 15,0 21,00 21,00
+401C plongeon retourné 3 1,3 35 2,5 3,0 3,0 3,0 9,0 11,70 32,70
+201A plongeon ordinaire arrière 3 19 25 1,5 2,5 2,0 1,5 6,0 11,40 44,10
+302C saut périlleux renversé 3 1,7 50 4,5 45 4,5 5,0 14,0 23,80 67,90
+5211A plongeon arrière avec % vrille 3 2,0 0,0 0,0 0,0 0,0 0,0 0,0 0,00 67,90 1
+202A saut périlleux arrière 3 1,8 1,5 3,5 1,5 2,0 1,0 5,0 9,00 76,90
+5121D saut périlleux avant avec % vrille 3 1,8 1,5 2,5 3,5 3,5 3,0 9,0 16,20 93,10
+103B saut périlleux et demi avant 3 16 45 2,5 40 4,0 4,0 12,0 19,20 112,30
+403C saut périlleux et demi retourné 3 19 50 4,5 45 45 45 13,5 25,65 137,95
+2 Léonardo NOTO (2011) -- Kingfisher Club Plongeon Montr
+101C plongeon ordinaire avant 3 14 45 40 40 4,0 4,0 12,0 16,80 16,80
+401C plongeon retourné 3 1,3 50 4,0 45 40 4,5 13,0 16,90 33,70
+201A plongeon ordinaire arrière 3 19 35 25 2,5 2,5 1,5 7,5 14,25 47,95
+301C plongeon renversé 3 18 40 4,0 3,5 4,0 4,0 12,0 21,60 69,55
+5121D saut périlleux avant avec % vrille 3 18 45 3,5 4,0 4,0 4,0 12,0 21,60 91,15
+103C saut périlleux et demi avant 3 1,5 15 25 1,5 2,5 1,5 5,5 8,25 99,40
+402C saut périlleux retourné 3 14 2,0 2,0 2,5 3,0 3,0 7,5 10,50 109,90
+202C saut périlleux arrière 3 16 35 25 3,5 3,0 3,5 10,0 16,00 125,90
+302C saut périlleux renversé 3 1,7 3,0 2,0 2,5 2,0 2,5 7,0 11,90 137,80
+3 Kamil FOMBUENA (2012) -- Kingfisher Club Plongeon Montr
+101C plongeon ordinaire avant 3 14 50 35 45 45 4,5 13,5 18,90 18,90
+401C plongeon retourné 3 13 35 35 3,5 3,0 3,5 10,5 13,65 32,55
+201A plongeon ordinaire arrière 3 1,9 00 0,0 00 0,0 0,0 0,0 0,00 32,55 1
+301C plongeon renversé 3 1,8 0,0 0,0 0,0 0,0 0,0 0,0 0,00 32,55 1
+5211A plongeon arrière avec % vrille 3 2,0 2,0 1,0 1,0 1,0 1,5 3,5 7,00 39,55
+103C saut périlleux et demi avant 3 1,5 1,0 1,0 2,0 3,0 1,0 4,0 6,00 45,55
+403C saut périlleux et demi retourné 3 1,9 1,5 1,5 2,0 2,0 2,0 5,5 10,45 56,00
+202C saut périlleux arrière 3 1,6 1,0 1,0 1,0 1,0 1,5 3,0 4,80 60,80 4
+302C saut périlleux renversé 3 1,7 1,5 1,0 1,0 1,5 1,5 4,0 6,80 67,60 4
+Elite - Dames - 3m
+N° HauteurCoe J1 J2 J3 J4 J5 J6 J7 Cumul Points Points Pen
+1 Fanny BOUVET (1994) -- Kingfisher Club Plongeon Montr
+103B saut périlleux et demi avant 3 16 7,0 6,5 7,0 65 6,5 20,0 32,00 32,00
+403B saut périlleux et demi retourné 3 2,1 6,5 7,5 7,5 6,5 7,0 21,0 44,10 76,10
+201B plongeon ordinaire arrière 3 1,8 7,0 7,5 7,0 7,0 6,0 21,0 37,80 113,90
+301B plongeon renversé 3 1,9 7,0 7,0 8,0 8,0 8,0 23,0 43,70 157,60
+5231D saut périlleux et demi arrière avec % vrille 3 2,0 7,5 6,5 7,5 7,0 6,5 21,0 42,00 199,60
+2 Bérénice LAIR (2001) -- Kingfisher Club Plongeon Montr
+301B plongeon renversé 3 1,9 45 50 3,5 4,0 3,5 12,0 22,80 22,80
+5211A plongeon arrière avec % vrille 3 2,0 7,0 7,5 7,0 6,5 7,5 21,5 43,00 65,80
+403B saut périlleux et demi retourné 3 2,1 6,5 5,0 5,5 6,0 5,0 16,5 34,65 100,45
+105C double saut périlleux et demi avant 3 2,2 30 1,5 3,5 3,0 2,5 8,5 18,70 119,15
+203B saut périlleux et demi arrière 3 2.2 6,5 5,5 60 6,0 5,5 17,5 38,50 157,65
+Codes des pénalités : 1 = Plongeon manqué 2 = Faux départ, -2 points 3 = Position d'exécution, 2 points max 4 = Position des bras, 4/2 points max
+https://www.diverecorder.co.uk Page 1/4 18:56, dimanche 23 novembre 2025
+
+
+---PAGE_BREAK---
+
+Elite - Dames - 3m
+N° HauteurCoe J1 J2 J3 J4 J5 J6 J7 Cumul Points Points Pen
+3 Clara VALROFF (2001) -- Kingfisher Club Plongeon Montr
+203C saut périlleux et demi arrière 3 19 55 65 5,5 6,0 5,0 17,0 32,30 32,30
+303C saut périlleux et demi renversé 3 20 45 40 45 40 3,5 12,5 25,00 57,30
+103B saut périlleux et demi avant 3 16 55 50 55 55 5,5 16,5 26,40 83,70
+403C saut périlleux et demi retourné 3 19 45 45 45 40 3,5 13,0 24,70 108,40
+5132D saut périlleux et demi avant avec 1 vrille 3 2,1 3,0 30 45 40 3,5 10,5 22,05 130,45
+4 Aglaé DRION (2000) -- Kingfisher Club Plongeon Montr
+201C plongeon ordinaire arrière 3 1,7 65 5,5 60 5,0 6,0 17,5 29,75 29,75
+5231D saut périlleux et demi arrière avec % vrille 3 2,0 4,5 3,5 4,0 4,0 3,0 11,5 23,00 52,75
+301C plongeon renversé 3 18 45 40 40 4,5 4,0 12,5 22,50 75,25
+103B saut périlleux et demi avant 3 16 35 40 40 45 3,5 11,5 18,40 93,65
+403C saut périlleux et demi retourné 3 1,9 7,0 6,0 60 5,5 7,0 19,0 36,10 129,75
+5 Léa TURCHI (1995) -- Paris Aquatique
+401B plongeon retourné 3 14 50 55 5,0 3,0 5,5 15,5 21,70 21,70
+301C plongeon renversé 3 18 50 4,5 45 45 45 13,5 24,30 46,00
+103B saut périlleux et demi avant 3 16 60 4,5 45 40 4,0 13,0 20,80 66,80
+202A saut périlleux arrière 3 18 45 40 40 4,0 5,0 12,5 22,50 89,30
+5231D saut périlleux et demi arrière avec % vrille 3 2,0 0,0 0,0 0,0 0,0 0,0 0,0 0,00 89,30 1
+Elite - Messieurs - 3m
+N° HauteurCoe J1 J2 J3 J4 J5 J6 J7 Cumul Points Points Pen
+1 Raphaél VIET TRIEM TONG (1991) -- Kingfisher Club Plongeon Montr
+101B plongeon ordinaire avant 3 15 40 45 4,5 4,0 4,5 13,0 19,50 19,50
+103B saut périlleux et demi avant 3 16 60 55 55 55 5,5 16,5 26,40 45,90
+5132D saut périlleux et demi avant avec 1 vrille 3 2,1 45 35 45 45 5,0 13,5 28,35 74,25
+403C saut périlleux et demi retourné 3 19 45 40 45 40 3,5 12,5 23,75 98,00
+202A saut périlleux arrière 3 1,8 50 6,0 5,0 6,0 7,0 17,0 30,60 128,60
+302C saut périlleux renversé 3 1,7 60 6,0 55 50 5,5 17,0 28,90 157,50
+2 Cédrino CIANFARANI (1986) -- H2024 Plongeon & Natation CAO
+301A plongeon renversé 3 2,0 5,0 3,0 3,5 3,0 2,0 9,5 19,00 19,00
+201C plongeon ordinaire arrière 3 1,7 60 5,0 60 65 6,5 18,5 31,45 50,45
+203C saut périlleux et demi arrière 3 19 40 3,5 4,0 3,0 3,0 10,5 19,95 70,40
+403C saut périlleux et demi retourné 3 19 50 5,0 55 55 5,0 15,5 29,45 99,85
+5231D saut périlleux et demi arrière avec % vrille 3 2,0 40 4,0 45 4,0 4,5 12,5 25,00 124,85
+105C double saut périlleux et demi avant 3 2.2 35 35 4,5 4,0 2,0 11,0 24,20 149,05
+3 Dimitri CABARET (1990) -- H2024 Plongeon & Natation CAO
+201A plongeon ordinaire arrière 3 19 40 4,0 3,5 3,5 3,0 11,0 20,90 20,90
+301B plongeon renversé 3 19 40 4,0 2,5 3,0 4,0 11,0 20,90 41,80
+401B plongeon retourné 3 14 55 55 4,5 4,0 5,0 15,0 21,00 62,80
+5211A plongeon arrière avec % vrille 3 2,0 55 6,0 6,0 5,0 5,0 16,5 33,00 95,80
+103B saut périlleux et demi avant 3 16 50 6,0 4,5 50 5,0 15,0 24,00 119,80
+403C saut périlleux et demi retourné 3 19 50 5,0 55 5,0 4,0 15,0 28,50 148,30
+4 Manuel POTOR (1989) -- Paris Aquatique
+403B saut périlleux et demi retourné 3 2,1 4,5 3,5 5,0 6,5 3,0 13,0 27,30 27,30
+203B saut périlleux et demi arrière 3 2.2 40 2,5 3,0 2,5 2,0 8,0 17,60 44,90
+303B saut périlleux et demi renversé 3 2,3 50 6,0 5,5 6,0 5,5 17,0 39,10 84,00
+405C double saut périlleux et demi retourné 3 2,7 50 4,5 4,5 4,0 5,0 14,0 37,80 121,80
+105B double saut périlleux et demi avant 3 24 35 3,5 4,0 4,0 3,0 11,0 26,40 148,20
+5132D saut périlleux et demi avant avec 1 vrille 3 2,1 0,0 00 0,0 0,0 0,0 0,0 0,00 148,20 1
+Codes des pénalités : 1 = Plongeon manqué 2 = Faux départ, -2 points 3 = Position d'exécution, 2 points max 4 = Position des bras, 4/2 points max
+https://www.diverecorder.co.uk Page 2/4 18:56, dimanche 23 novembre 2025

@@ -1,0 +1,22 @@
+---
+import { ClubProfileView } from "../../components/ClubProfileView";
+import AppLayout from "../../layouts/AppLayout.astro";
+
+export async function getStaticPaths() {
+  const response = await fetch("http://127.0.0.1:4101/clubs");
+  const clubs = (await response.json()) as Array<{ slug: string }>;
+  return clubs.map((club) => ({
+    params: { slug: club.slug },
+  }));
+}
+
+const { slug } = Astro.params;
+---
+
+<AppLayout
+  title="Club Profile"
+  description="A club-level workspace with roster coverage, competition-level deep links, recent dives, and direct navigation into athlete profiles."
+  pathname="/clubs"
+>
+  <ClubProfileView clubSlug={slug || ""} client:load />
+</AppLayout>

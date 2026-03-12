@@ -1,0 +1,52 @@
+---
+import "../styles/app.css";
+
+const { title, description, pathname = "/" } = Astro.props;
+
+const navItems = [
+  { href: "/", label: "Overview" },
+  { href: "/upload", label: "Results Intake" },
+  { href: "/competitions", label: "Competitions" },
+  { href: "/athletes", label: "Athletes" },
+  { href: "/clubs", label: "Clubs" },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <strong>Diving Analytics</strong>
+          <span>Competition intelligence, athlete profiling, club analysis</span>
+        </div>
+
+        <nav class="nav">
+          {navItems.map((item) => (
+            <a href={item.href} data-active={pathname === item.href}>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
+        <div class="sidebar-note">Structured result intake, linked competition workspaces, and dive-level review.</div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <div>
+            <h1>{title}</h1>
+            <p>{description}</p>
+          </div>
+        </header>
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>
