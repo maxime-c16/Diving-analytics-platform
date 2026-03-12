@@ -148,6 +148,13 @@ function renderLedgerScores(scores: number[], droppedIndexes: number[]) {
   ));
 }
 
+type WorkspaceCrumb = {
+  key: string;
+  label: string;
+  current?: boolean;
+  onClick?: () => void;
+};
+
 export function CompetitionsView(props: {
   initialList?: Competition[];
   initialDetail?: CompetitionDetailResponse | null;
@@ -407,6 +414,101 @@ export function CompetitionsView(props: {
     writeQueryParam("view", "club");
   }
 
+  const focusedDive =
+    selectedDiveId && eventScoped
+      ? eventScoped.dives.find((dive) => String(dive.id) === selectedDiveId) || null
+      : null;
+
+  const workspaceCrumbs: WorkspaceCrumb[] = detail && eventScoped
+    ? [
+        {
+          key: "competition",
+          label: detail.competition.name,
+          onClick: () => {
+            setSelectedEntryId("");
+            setSelectedDiveId("");
+            setSelectedClub("");
+            setAnalysisView("overview");
+            writeQueryParam("entry", "");
+            writeQueryParam("dive", "");
+            writeQueryParam("club", "");
+            writeQueryParam("view", "overview");
+          },
+        },
+        {
+          key: "event",
+          label: eventScoped.currentEvent,
+          onClick: () => openEvent(eventScoped.currentEvent),
+        },
+        ...(selectedClub
+          ? [
+              {
+                key: "club-mode",
+                label: "Club focus",
+                onClick: () => {
+                  setAnalysisView("club");
+                  writeQueryParam("view", "club");
+                },
+              },
+              {
+                key: "club-name",
+                label: selectedClub,
+                current: analysisView === "club" && !selectedDiveId,
+                onClick: () => openClubFocus(selectedClub),
+              },
+            ]
+          : analysisView === "athlete" && eventScoped.selectedEntry
+            ? [
+                {
+                  key: "focus-mode",
+                  label: eventScoped.isSynchro ? "Pair focus" : "Athlete focus",
+                  onClick: () => {
+                    setAnalysisView("athlete");
+                    writeQueryParam("view", "athlete");
+                  },
+                },
+                {
+                  key: "focus-entry",
+                  label: eventScoped.selectedEntry.entryName,
+                  current: !selectedDiveId,
+                  onClick: () => openEntryInEvent(eventScoped.selectedEntry!.id),
+                },
+              ]
+            : analysisView === "ledger"
+              ? [
+                  {
+                    key: "ledger-mode",
+                    label: "Full ledger",
+                    current: !selectedDiveId,
+                    onClick: () => {
+                      setAnalysisView("ledger");
+                      writeQueryParam("view", "ledger");
+                    },
+                  },
+                ]
+              : [
+                  {
+                    key: "overview-mode",
+                    label: "Event overview",
+                    current: true,
+                    onClick: () => {
+                      setAnalysisView("overview");
+                      writeQueryParam("view", "overview");
+                    },
+                  },
+                ]),
+        ...(focusedDive
+          ? [
+              {
+                key: "dive",
+                label: focusedDive.diveCode,
+                current: true,
+              },
+            ]
+          : []),
+      ]
+    : [];
+
   return (
     <div className="page-grid">
       {error ? <div className="notice">{error}</div> : null}
@@ -467,6 +569,26 @@ export function CompetitionsView(props: {
 
           <section className="panel">
             <h2>Competition workspace</h2>
+            {workspaceCrumbs.length > 0 ? (
+              <div className="workspace-context" aria-label="Competition context trail">
+                {workspaceCrumbs.map((crumb, index) => (
+                  <span className="workspace-context-item" key={crumb.key}>
+                    {crumb.onClick && !crumb.current ? (
+                      <button className="workspace-context-link" onClick={crumb.onClick} type="button">
+                        {crumb.label}
+                      </button>
+                    ) : (
+                      <span className="workspace-context-current">{crumb.label}</span>
+                    )}
+                    {index < workspaceCrumbs.length - 1 ? (
+                      <span aria-hidden="true" className="workspace-context-separator">
+                        /
+                      </span>
+                    ) : null}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <div className="analysis-layout">
               <div className="analysis-rail">
                 <div className="rail-block">

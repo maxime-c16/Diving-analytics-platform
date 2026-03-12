@@ -165,6 +165,14 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
         entryId: detail.latestCompetition.entryId,
       })
     : null;
+  const bestDiveHref = bestDiveCards[0]
+    ? competitionFocusHref({
+        competitionId: bestDiveCards[0].competitionId || "",
+        eventName: bestDiveCards[0].eventName,
+        entryId: bestDiveCards[0].entryId,
+        diveId: bestDiveCards[0].diveId,
+      })
+    : null;
 
   return (
     <div className="page-grid">
@@ -206,6 +214,33 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
         <div className="metric">
           <span>Recent form</span>
           <strong>{formatScore(detail.athlete.recentFormAverage)}</strong>
+        </div>
+      </section>
+
+      <section className="panel context-panel">
+        <div className="section-head">
+          <h2>Quick paths</h2>
+          <span className="muted">Return to the live competition context</span>
+        </div>
+        <div className="context-links">
+          {detail.athlete.latestClub ? (
+            <a className="context-link-card" href={clubProfileHref(detail.athlete.latestClub)}>
+              <strong>Club</strong>
+              <span>{detail.athlete.latestClub}</span>
+            </a>
+          ) : null}
+          {latestCompetitionHref ? (
+            <a className="context-link-card" href={latestCompetitionHref}>
+              <strong>Latest competition</strong>
+              <span>{detail.latestCompetition?.competitionName}</span>
+            </a>
+          ) : null}
+          {bestDiveHref ? (
+            <a className="context-link-card" href={bestDiveHref}>
+              <strong>Best dive</strong>
+              <span>{bestDiveCards[0].bestDiveCode} · {bestDiveCards[0].label}</span>
+            </a>
+          ) : null}
         </div>
       </section>
 

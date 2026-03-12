@@ -173,6 +173,25 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
   }
 
   const recentCompetitions = detail.competitionHistory.slice(0, 3);
+  const latestCompetitionHref = detail.latestCompetition
+    ? competitionFocusHref({
+        competitionId: detail.latestCompetition.competitionId,
+        eventName: detail.latestCompetition.featuredEventName,
+        view: "club",
+        clubName: detail.club.name,
+      })
+    : null;
+  const latestDive = detail.recentDives[0] || null;
+  const latestDiveHref = latestDive
+    ? competitionFocusHref({
+        competitionId: latestDive.competitionId,
+        eventName: latestDive.eventName,
+        entryId: latestDive.entryId,
+        diveId: latestDive.diveId,
+        view: "ledger",
+        clubName: detail.club.name,
+      })
+    : null;
 
   function cycleRosterSort(key: RosterSortKey) {
     const nextDirection = nextSortDirection(rosterSortKey, rosterSortDirection, key, {
@@ -212,6 +231,42 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
         <div className="metric">
           <span>Event families</span>
           <strong>{detail.eventTypeStats.length}</strong>
+        </div>
+      </section>
+
+      <section className="panel context-panel">
+        <div className="section-head">
+          <h2>Quick paths</h2>
+          <span className="muted">Open the club in its live competition context</span>
+        </div>
+        <div className="context-links">
+          {latestCompetitionHref ? (
+            <a className="context-link-card" href={latestCompetitionHref}>
+              <strong>Latest competition</strong>
+              <span>{detail.latestCompetition?.competitionName}</span>
+            </a>
+          ) : null}
+          {detail.topResults[0] ? (
+            <a
+              className="context-link-card"
+              href={competitionFocusHref({
+                competitionId: detail.topResults[0].competitionId,
+                eventName: detail.topResults[0].eventName,
+                entryId: detail.topResults[0].entryId,
+                view: "athlete",
+                clubName: detail.club.name,
+              })}
+            >
+              <strong>Top result</strong>
+              <span>{detail.topResults[0].eventName || detail.topResults[0].competitionName}</span>
+            </a>
+          ) : null}
+          {latestDiveHref ? (
+            <a className="context-link-card" href={latestDiveHref}>
+              <strong>Latest dive</strong>
+              <span>{latestDive?.diveCode} · {latestDive?.competitionName}</span>
+            </a>
+          ) : null}
         </div>
       </section>
 
