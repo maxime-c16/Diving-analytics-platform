@@ -165,9 +165,11 @@ export function CompetitionsView(props: {
   const [selectedDiveId, setSelectedDiveId] = useState("");
   const [analysisView, setAnalysisView] = useState("overview");
   const [selectedClub, setSelectedClub] = useState("");
+  const [focusTarget, setFocusTarget] = useState("");
   const [list, setList] = useState<Competition[]>(props.initialList || []);
   const [detail, setDetail] = useState<CompetitionDetailResponse | null>(props.initialDetail || null);
   const [error, setError] = useState<string | null>(null);
+  const [visibleClubRosterCount, setVisibleClubRosterCount] = useState(10);
 
   useEffect(() => {
     setCompetitionId(readQueryParam("id"));
@@ -176,6 +178,7 @@ export function CompetitionsView(props: {
     setSelectedDiveId(readQueryParam("dive"));
     setSelectedClub(readQueryParam("club"));
     setAnalysisView(readQueryParam("view") || "overview");
+    setFocusTarget(readQueryParam("focus"));
   }, []);
 
   useEffect(() => {
@@ -234,6 +237,10 @@ export function CompetitionsView(props: {
       })
       .catch((err) => setError(err.message));
   }, [competitionId, selectedDiveId]);
+
+  useEffect(() => {
+    setVisibleClubRosterCount(10);
+  }, [competitionId, selectedEvent, selectedClub]);
 
   const eventScoped = useMemo(() => {
     if (!detail) {
@@ -360,12 +367,46 @@ export function CompetitionsView(props: {
     if (typeof document === "undefined") {
       return;
     }
-    const focusedRow = document.querySelector<HTMLElement>(`[data-dive-id="${selectedDiveId}"]`);
-    if (!focusedRow) {
+    let attempts = 0;
+    const scrollToDive = () => {
+      const focusedRow = document.querySelector<HTMLElement>(
+        `.analysis-panel:not([hidden]) [data-dive-id="${selectedDiveId}"]`,
+      );
+      if (!focusedRow) {
+        attempts += 1;
+        if (attempts < 8) {
+          window.setTimeout(scrollToDive, 120);
+        }
+        return;
+      }
+      const ledgerPanel = focusedRow.closest<HTMLElement>(".panel");
+      if (ledgerPanel) {
+        const top = ledgerPanel.getBoundingClientRect().top + window.scrollY - 24;
+        window.scrollTo({ top, behavior: "auto" });
+      }
+      const rowTop = focusedRow.getBoundingClientRect().top + window.scrollY - 120;
+      window.scrollTo({ top: rowTop, behavior: "auto" });
+    };
+    scrollToDive();
+  }, [analysisView, selectedDiveId, eventScoped?.currentEvent, selectedEntryId]);
+
+  useEffect(() => {
+    if (analysisView !== "athlete" || focusTarget !== "progression") {
       return;
     }
-    focusedRow.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [analysisView, selectedDiveId, eventScoped?.currentEvent]);
+    if (typeof document === "undefined") {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      const panel = document.querySelector<HTMLElement>(".focus-table-panel");
+      if (!panel) {
+        return;
+      }
+      const top = panel.getBoundingClientRect().top + window.scrollY - 24;
+      window.scrollTo({ top, behavior: "auto" });
+    }, 120);
+    return () => window.clearTimeout(timeoutId);
+  }, [analysisView, focusTarget, competitionId, selectedEvent, selectedEntryId]);
 
   function openCompetition(id: number) {
     const value = String(id);
@@ -876,7 +917,11 @@ export function CompetitionsView(props: {
                       </div>
                     </div>
 
-                    <div className="panel focus-table-panel">
+                    <div
+                      className="panel focus-table-panel"
+                      data-emphasis={focusTarget === "progression"}
+                      id="progression-panel"
+                    >
                       <h2>{eventScoped.isSynchro ? "Synchro dive progression" : "Event dive progression"}</h2>
                       <table className="table table-analysis">
                         <thead>
@@ -899,7 +944,7 @@ export function CompetitionsView(props: {
                           {eventScoped.selectedEntry.dives.map((dive) => (
                             <tr
                               data-dive-id={dive.id}
-                              data-focused={String(dive.id) === selectedDiveId}
+                              data-focused={analysisView === "athlete" && String(dive.id) === selectedDiveId}
                               key={dive.id}
                             >
                               <td>
@@ -959,7 +1004,7 @@ export function CompetitionsView(props: {
                           <div className="analysis-subpanel">
                             <div className="rail-label">Club athletes in competition</div>
                             <div className="focus-entry-list">
-                              {eventScoped.clubRoster.map((athlete) => (
+                              {eventScoped.clubRoster.slice(0, visibleClubRosterCount).map((athlete) => (
                                 <a
                                   className="focus-entry-item"
                                   href={athleteProfileHref(athlete.id)}
@@ -972,6 +1017,17 @@ export function CompetitionsView(props: {
                                 </a>
                               ))}
                             </div>
+                            {eventScoped.clubRoster.length > visibleClubRosterCount ? (
+                              <div style={{ marginTop: 14 }}>
+                                <button
+                                  className="button secondary"
+                                  onClick={() => setVisibleClubRosterCount((count) => count + 10)}
+                                  type="button"
+                                >
+                                  Show 10 more
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -1016,7 +1072,7 @@ export function CompetitionsView(props: {
                   className="analysis-panel"
                   hidden={analysisView !== "ledger"}
                 >
-                  <div className="panel">
+                  <div className="panel" id="ledger-panel">
                     <h2>Event dive ledger</h2>
                     <table className="table table-ledger">
                       <thead>
@@ -1070,7 +1126,7 @@ export function CompetitionsView(props: {
                           {group.dives.map((dive) => (
                             <tr
                               data-dive-id={dive.id}
-                              data-focused={String(dive.id) === selectedDiveId}
+                              data-focused={analysisView === "ledger" && String(dive.id) === selectedDiveId}
                               key={dive.id}
                             >
                             <td className="ledger-dive-cell">

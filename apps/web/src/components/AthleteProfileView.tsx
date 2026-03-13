@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchJson } from "./api";
-import { athleteProfileHref, clubProfileHref, competitionFocusHref } from "./links";
+import { athleteProfileHref, athleteTechniqueHref, clubProfileHref, competitionFocusHref } from "./links";
 
 type AthleteProfile = {
   athlete: {
@@ -139,14 +139,46 @@ function rankLabel(rank: number | null) {
   return `rank ${rank}`;
 }
 
+function summariseBestDiveContext(label: string, eventName: string | null) {
+  if (!eventName) {
+    return "Event not recorded";
+  }
+
+  const normalizedFamily = label
+    .toLowerCase()
+    .replace("synchro ", "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const compact = eventName
+    .replace(/Masters?\s+/i, "")
+    .replace(/Elite\s*-\s*/i, "")
+    .replace(/\bSynchro\b/i, "")
+    .replace(new RegExp(normalizedFamily.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+-\s+/g, " · ")
+    .trim()
+    .replace(/^·\s*/, "")
+    .replace(/\s+·$/, "");
+
+  return compact || eventName;
+}
+
 export function AthleteProfileView(props: { athleteId: string; initialDetail?: AthleteProfile | null }) {
   const [detail, setDetail] = useState<AthleteProfile | null>(props.initialDetail || null);
   const [error, setError] = useState<string | null>(null);
+  const [visibleCompetitionHistoryCount, setVisibleCompetitionHistoryCount] = useState(8);
+  const [visibleDiveCount, setVisibleDiveCount] = useState(5);
 
   useEffect(() => {
     fetchJson<AthleteProfile>(`/athletes/${props.athleteId}`)
       .then(setDetail)
       .catch((err) => setError(err.message));
+  }, [props.athleteId]);
+
+  useEffect(() => {
+    setVisibleCompetitionHistoryCount(8);
+    setVisibleDiveCount(5);
   }, [props.athleteId]);
 
   if (error) {
@@ -158,6 +190,8 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
   }
 
   const bestDiveCards = detail.bestDiveByEventType.filter((item) => item.bestDiveCode);
+  const visibleCompetitionHistory = detail.competitionHistory.slice(0, visibleCompetitionHistoryCount);
+  const visibleDives = detail.dives.slice(0, visibleDiveCount);
   const latestCompetitionHref = detail.latestCompetition
     ? competitionFocusHref({
         competitionId: detail.latestCompetition.competitionId,
@@ -171,6 +205,8 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
         eventName: bestDiveCards[0].eventName,
         entryId: bestDiveCards[0].entryId,
         diveId: bestDiveCards[0].diveId,
+        view: "ledger",
+        hash: "ledger-panel",
       })
     : null;
 
@@ -223,6 +259,10 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
           <span className="muted">Return to the live competition context</span>
         </div>
         <div className="context-links">
+          <a className="context-link-card" href={athleteTechniqueHref(props.athleteId)}>
+            <strong>Technique</strong>
+            <span>Dive groups, code structure, and technical breakdown</span>
+          </a>
           {detail.athlete.latestClub ? (
             <a className="context-link-card" href={clubProfileHref(detail.athlete.latestClub)}>
               <strong>Club</strong>
@@ -436,7 +476,7 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
             </div>
           </div>
           <div className="stack">
-            {detail.competitionHistory.map((row) => (
+            {visibleCompetitionHistory.map((row) => (
               <div className="list-item competition-history-item" key={`${row.competitionId}-${row.eventName}-${row.entryId}`}>
                 <div className="between-row">
                   <div className="competition-history-main">
@@ -473,41 +513,65 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
               </div>
             ))}
           </div>
+          {visibleCompetitionHistory.length < detail.competitionHistory.length ? (
+            <div style={{ marginTop: 14 }}>
+              <button
+                className="button secondary"
+                onClick={() => setVisibleCompetitionHistoryCount((count) => count + 8)}
+                type="button"
+              >
+                Show 8 more
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="panel">
           <h2>Best dives by family</h2>
-          <div className="stack">
+          <div className="best-dive-grid">
             {bestDiveCards.map((row) => (
-              <div className="list-item" key={row.eventFamily}>
-                <div className="between-row">
-                  <strong>{row.label}</strong>
-                  <span>{formatScore(row.bestDiveScore)}</span>
+              <a
+                className="best-dive-card profile-card-link"
+                href={
+                  row.competitionId
+                    ? competitionFocusHref({
+                        competitionId: row.competitionId,
+                        eventName: row.eventName,
+                        entryId: row.entryId,
+                        diveId: row.diveId,
+                        view: "ledger",
+                        hash: "ledger-panel",
+                      })
+                    : "#"
+                }
+                key={row.eventFamily}
+              >
+                <div className="best-dive-head">
+                  <div>
+                    <strong>{row.label}</strong>
+                    <div className="muted best-dive-context">
+                      {summariseBestDiveContext(row.label, row.eventName)}
+                    </div>
+                  </div>
+                  <div className="best-dive-score">{formatScore(row.bestDiveScore)}</div>
                 </div>
-                <div className="muted" style={{ marginTop: 6 }}>
-                  {row.bestDiveCode} · {row.eventName || "Event not recorded"}
+                <div className="best-dive-meta">
+                  <div className="best-dive-code">{row.bestDiveCode}</div>
+                  <div className="muted">{row.competitionName || "Competition not recorded"}</div>
                 </div>
-                {row.competitionId ? (
-                  <a
-                    className="chip"
-                    href={competitionFocusHref({
-                      competitionId: row.competitionId,
-                      eventName: row.eventName,
-                      entryId: row.entryId,
-                      diveId: row.diveId,
-                    })}
-                  >
-                    Open best result
-                  </a>
-                ) : null}
-              </div>
+              </a>
             ))}
           </div>
         </div>
       </section>
 
       <section className="panel">
-        <h2>Full dive log</h2>
+        <div className="section-head">
+          <h2>Full dive log</h2>
+          <span className="muted">
+            Showing {visibleDives.length} of {detail.dives.length}
+          </span>
+        </div>
         <table className="table">
           <thead>
             <tr>
@@ -519,7 +583,7 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
             </tr>
           </thead>
           <tbody>
-            {detail.dives.map((dive) => (
+            {visibleDives.map((dive) => (
               <tr
                 className="table-row-link"
                 key={dive.id}
@@ -529,6 +593,8 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
                     eventName: dive.eventName,
                     entryId: dive.entryId,
                     diveId: dive.id,
+                    view: "ledger",
+                    hash: "ledger-panel",
                   }))
                 }
               >
@@ -549,6 +615,17 @@ export function AthleteProfileView(props: { athleteId: string; initialDetail?: A
             ))}
           </tbody>
         </table>
+        {visibleDives.length < detail.dives.length ? (
+          <div style={{ marginTop: 14 }}>
+            <button
+              className="button secondary"
+              onClick={() => setVisibleDiveCount((count) => count + 5)}
+              type="button"
+            >
+              Show 5 more
+            </button>
+          </div>
+        ) : null}
       </section>
     </div>
   );

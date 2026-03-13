@@ -46,6 +46,10 @@ type ClubDetail = {
     appearanceCount: number;
     athleteCount: number;
     bestTotal: number | null;
+    bestCompetitionId: number | null;
+    bestCompetitionName: string | null;
+    bestEventName: string | null;
+    bestEntryId: number | null;
     latestCompetitionDate: string | null;
     latestCompetitionId: number | null;
     latestCompetitionName: string | null;
@@ -126,6 +130,10 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
   const [error, setError] = useState<string | null>(null);
   const [rosterSortKey, setRosterSortKey] = useState<RosterSortKey>("bestTotal");
   const [rosterSortDirection, setRosterSortDirection] = useState<SortDirection>("desc");
+  const [rosterQuery, setRosterQuery] = useState("");
+  const [visibleRosterCount, setVisibleRosterCount] = useState(5);
+  const [visibleCompetitionHistoryCount, setVisibleCompetitionHistoryCount] = useState(8);
+  const [visibleRecentDiveCount, setVisibleRecentDiveCount] = useState(5);
 
   useEffect(() => {
     fetchJson<ClubDetail>(`/clubs/${props.clubSlug}`)
@@ -133,9 +141,30 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
       .catch((err) => setError(err.message));
   }, [props.clubSlug]);
 
+  useEffect(() => {
+    setRosterQuery("");
+    setVisibleRosterCount(5);
+    setVisibleCompetitionHistoryCount(8);
+    setVisibleRecentDiveCount(5);
+  }, [props.clubSlug]);
+
+  const filteredRoster = detail
+    ? detail.roster.filter((athlete) => {
+        const normalizedQuery = rosterQuery.trim().toLowerCase();
+        if (!normalizedQuery) {
+          return true;
+        }
+        return (
+          athlete.athleteName.toLowerCase().includes(normalizedQuery) ||
+          String(athlete.latestCompetitionName || "").toLowerCase().includes(normalizedQuery) ||
+          String(athlete.birthYear || "").toLowerCase().includes(normalizedQuery)
+        );
+      })
+    : [];
+
   const sortedRoster = detail
     ? (() => {
-        const next = [...detail.roster];
+        const next = [...filteredRoster];
         if (!rosterSortDirection) {
           return next;
         }
@@ -163,6 +192,9 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
         return next;
       })()
     : [];
+  const visibleRoster = sortedRoster.slice(0, visibleRosterCount);
+  const visibleCompetitionHistory = detail ? detail.competitionHistory.slice(0, visibleCompetitionHistoryCount) : [];
+  const visibleRecentDives = detail ? detail.recentDives.slice(0, visibleRecentDiveCount) : [];
 
   if (error) {
     return <div className="notice">{error}</div>;
@@ -190,6 +222,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
         diveId: latestDive.diveId,
         view: "ledger",
         clubName: detail.club.name,
+        hash: "ledger-panel",
       })
     : null;
 
@@ -353,7 +386,24 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
       <section className="panel">
         <div className="section-head">
           <h2>Athlete roster</h2>
-          <span className="muted">Direct links to full athlete profiles</span>
+          <span className="muted">
+            Showing {visibleRoster.length} of {sortedRoster.length}
+          </span>
+        </div>
+        <div className="section-toolbar">
+          <label className="directory-field section-search-field">
+            <span>Search athlete</span>
+            <input
+              className="input"
+              onChange={(event) => {
+                setRosterQuery(event.target.value);
+                setVisibleRosterCount(5);
+              }}
+              placeholder="Athlete, birth year, latest competition"
+              type="search"
+              value={rosterQuery}
+            />
+          </label>
         </div>
         <table className="table">
           <thead>
@@ -401,7 +451,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
             </tr>
           </thead>
           <tbody>
-            {sortedRoster.map((athlete) => (
+            {visibleRoster.map((athlete) => (
               <tr key={athlete.athleteId}>
                 <td>
                   <a href={athleteProfileHref(athlete.athleteId)}>
@@ -420,6 +470,17 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
             ))}
           </tbody>
         </table>
+        {visibleRoster.length < sortedRoster.length ? (
+          <div style={{ marginTop: 14 }}>
+            <button
+              className="button secondary"
+              onClick={() => setVisibleRosterCount((count) => count + 5)}
+              type="button"
+            >
+              Show 5 more
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <section className="two-column">
@@ -444,7 +505,25 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                   </td>
                   <td>{stat.athleteCount}</td>
                   <td>{stat.appearanceCount}</td>
-                  <td>{formatScore(stat.bestTotal)}</td>
+                  <td>
+                    {stat.bestCompetitionId ? (
+                      <a
+                        href={competitionFocusHref({
+                          competitionId: stat.bestCompetitionId,
+                          eventName: stat.bestEventName,
+                          entryId: stat.bestEntryId,
+                          view: "athlete",
+                          clubName: detail.club.name,
+                          focus: "progression",
+                          hash: "progression-panel",
+                        })}
+                      >
+                        {formatScore(stat.bestTotal)}
+                      </a>
+                    ) : (
+                      formatScore(stat.bestTotal)
+                    )}
+                  </td>
                   <td>
                     {stat.latestCompetitionId ? (
                       <a
@@ -468,12 +547,14 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
         </div>
 
         <div className="panel">
-          <div className="section-head">
-            <h2>Competition history</h2>
-            <span className="muted">Meet-level deep links</span>
-          </div>
+        <div className="section-head">
+          <h2>Competition history</h2>
+          <span className="muted">
+            Showing {visibleCompetitionHistory.length} of {detail.competitionHistory.length}
+          </span>
+        </div>
           <div className="stack">
-            {detail.competitionHistory.map((row) => (
+            {visibleCompetitionHistory.map((row) => (
               <a
                 className="list-item competition-history-item"
                 href={competitionFocusHref({
@@ -503,13 +584,26 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
               </a>
             ))}
           </div>
+          {visibleCompetitionHistory.length < detail.competitionHistory.length ? (
+            <div style={{ marginTop: 14 }}>
+              <button
+                className="button secondary"
+                onClick={() => setVisibleCompetitionHistoryCount((count) => count + 8)}
+                type="button"
+              >
+                Show 8 more
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 
       <section className="panel">
         <div className="section-head">
           <h2>Recent dives</h2>
-          <span className="muted">Deep links to exact ledger rows</span>
+          <span className="muted">
+            Showing {visibleRecentDives.length} of {detail.recentDives.length}
+          </span>
         </div>
         <table className="table table-clickable">
           <thead>
@@ -523,7 +617,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
             </tr>
           </thead>
           <tbody>
-            {detail.recentDives.map((dive) => (
+            {visibleRecentDives.map((dive) => (
               <tr
                 key={dive.diveId}
                 onClick={() =>
@@ -532,7 +626,9 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                     eventName: dive.eventName,
                     entryId: dive.entryId,
                     diveId: dive.diveId,
+                    view: "ledger",
                     clubName: detail.club.name,
+                    hash: "ledger-panel",
                   }))
                 }
               >
@@ -554,6 +650,17 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
             ))}
           </tbody>
         </table>
+        {visibleRecentDives.length < detail.recentDives.length ? (
+          <div style={{ marginTop: 14 }}>
+            <button
+              className="button secondary"
+              onClick={() => setVisibleRecentDiveCount((count) => count + 5)}
+              type="button"
+            >
+              Show 5 more
+            </button>
+          </div>
+        ) : null}
       </section>
     </div>
   );

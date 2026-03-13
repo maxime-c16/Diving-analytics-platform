@@ -647,6 +647,10 @@ export function getClubDetail(slug: string) {
           appearanceCount: 0,
           athleteCount: new Set<number>(),
           bestTotal: null as number | null,
+          bestCompetitionId: null as number | null,
+          bestCompetitionName: null as string | null,
+          bestEventName: null as string | null,
+          bestEntryId: null as number | null,
           latestCompetitionDate: null as string | null,
           latestCompetitionId: null as number | null,
           latestCompetitionName: null as string | null,
@@ -663,7 +667,13 @@ export function getClubDetail(slug: string) {
         }
       });
       if (typeof entry.finalTotal === "number") {
-        current.bestTotal = Math.max(current.bestTotal || 0, entry.finalTotal);
+        if (entry.finalTotal >= (current.bestTotal || 0)) {
+          current.bestTotal = entry.finalTotal;
+          current.bestCompetitionId = entry.competitionId;
+          current.bestCompetitionName = entry.competitionName;
+          current.bestEventName = entry.eventName;
+          current.bestEntryId = entry.entryId;
+        }
       }
       if (toTimestamp(entry.competitionDate) >= toTimestamp(current.latestCompetitionDate)) {
         current.latestCompetitionDate = entry.competitionDate;

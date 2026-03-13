@@ -1,0 +1,41 @@
+---
+import { AthleteTechniqueView } from "../../../components/AthleteTechniqueView";
+import AppLayout from "../../../layouts/AppLayout.astro";
+
+export async function getStaticPaths() {
+  const response = await fetch("http://127.0.0.1:4101/athletes");
+  const athletes = (await response.json()) as Array<{ id: number }>;
+  return athletes.map((athlete) => ({
+    params: { id: String(athlete.id) },
+  }));
+}
+
+const { id } = Astro.params;
+const initialDetail = id
+  ? await fetch(`http://127.0.0.1:4101/athletes/${id}`).then((response) =>
+      response.ok ? response.json() : null,
+    )
+  : null;
+---
+
+<AppLayout
+  breadcrumbs={
+    initialDetail
+      ? [
+          { href: "/", label: "Overview" },
+          { href: "/athletes", label: "Athletes" },
+          { href: `/athletes/${id}`, label: initialDetail.athlete.name },
+          { label: "Technique" },
+        ]
+      : [
+          { href: "/", label: "Overview" },
+          { href: "/athletes", label: "Athletes" },
+          { label: "Technique" },
+        ]
+  }
+  title="Dive Technique"
+  description="A technical workspace for dive groups, code anatomy, repeated patterns, and direct links back to the exact scoring attempts."
+  pathname="/athletes"
+>
+  <AthleteTechniqueView athleteId={id || ""} client:load initialDetail={initialDetail} />
+</AppLayout>

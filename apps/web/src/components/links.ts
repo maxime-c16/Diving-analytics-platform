@@ -2,6 +2,10 @@ export function athleteProfileHref(id: number | string) {
   return `/athletes/${id}`;
 }
 
+export function athleteTechniqueHref(id: number | string) {
+  return `/athletes/${id}/technique`;
+}
+
 function clubSlug(value: string) {
   return value
     .trim()
@@ -24,6 +28,8 @@ export function competitionFocusHref(input: {
   diveId?: number | string | null;
   view?: string | null;
   clubName?: string | null;
+  focus?: string | null;
+  hash?: string | null;
 }) {
   const params = new URLSearchParams();
   params.set("id", String(input.competitionId));
@@ -42,5 +48,9 @@ export function competitionFocusHref(input: {
   if (input.clubName) {
     params.set("club", input.clubName);
   }
-  return `/competitions?${params.toString()}`;
+  if (input.focus) {
+    params.set("focus", input.focus);
+  }
+  const hash = input.hash ? `#${input.hash}` : "";
+  return `/competitions?${params.toString()}${hash}`;
 }
