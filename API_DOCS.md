@@ -101,6 +101,13 @@ Includes:
 - competition history
 - dive history
 
+Important note:
+- this payload also powers the athlete technique workspace at `/athletes/:id/technique`
+- each dive entry includes enough code, event, and competition context to derive:
+  - official dive-group breakdown
+  - code-level aggregation
+  - deep links back to exact competition ledger rows
+
 ## Clubs
 
 ### `GET /clubs`
@@ -124,6 +131,10 @@ Includes:
 - recent competitions
 - top results
 - recent dives
+
+Important note:
+- club profile deep links can open competition pages directly in club-focus mode
+- recent dives and event-coverage surfaces link to exact ledger or focus states in the competition workspace
 
 ## Analytics
 
@@ -190,7 +201,21 @@ The `review` object contains:
 - `quality`
 - `eventCoverage`
 
+Typical `quality` signals include:
+- extracted event count
+- athlete and dive totals
+- confidence / parsing notes when the extractor flags weak structure
+
+Typical `eventCoverage` fields include:
+- event family
+- athlete count
+- entry count
+- best total
+- latest competition context
+
 ## Notes
 - There is no Swagger UI in the current app
 - There is no Docker-first API path in the current default workflow
 - The historical NestJS API and its docs are no longer the active reference implementation
+- Competition payloads, athlete payloads, and club payloads are intentionally rich because the web app uses deep-link navigation instead of thin page-specific endpoints
+- Athlete and club identities are normalized before presentation to reduce duplicates caused by case, club-suffix noise, and repeated source rows

@@ -45,13 +45,18 @@ Important current behaviors:
   - `execution_scores`
   - `synchronization_scores`
 - dates and clubs are normalized later in the API layer before presentation
+- dive codes are passed through to the API intact so the athlete technique workspace can derive:
+  - official dive groups
+  - flying markers
+  - twisting and armstand direction components
+  - position labels and code-level structure
 
 ## Validation
 ```bash
 python3 -m py_compile worker/extract_pdf.py
 ```
 
-The main browser smoke flow also exercises the PDF ingestion route after the API calls this script.
+The main browser smoke flow also exercises the PDF ingestion route after the API calls this script, and the imported dives are then consumed by competition, athlete, club, and technique workspaces.
 
 ## Historical Note
 `worker.py` and the Redis/Celery-oriented service model in this directory are legacy migration artifacts. They are not the primary local development path for the current app.
