@@ -1,9 +1,40 @@
-export function athleteProfileHref(id: number | string) {
-  return `/athletes/${id}`;
+function withQuery(pathname: string, params: URLSearchParams) {
+  const query = params.toString();
+  return `${pathname}${query ? `?${query}` : ""}`;
 }
 
-export function athleteTechniqueHref(id: number | string) {
-  return `/athletes/${id}/technique`;
+export function athleteProfileHref(
+  id: number | string,
+  options?: {
+    from?: string | null;
+  },
+) {
+  const params = new URLSearchParams();
+  if (options?.from) {
+    params.set("from", options.from);
+  }
+  return withQuery(`/athletes/${id}`, params);
+}
+
+export function athleteTechniqueHref(
+  id: number | string,
+  options?: {
+    groupId?: number | string | null;
+    mode?: string | null;
+    from?: string | null;
+  },
+) {
+  const params = new URLSearchParams();
+  if (options?.groupId) {
+    params.set("group", String(options.groupId));
+  }
+  if (options?.mode) {
+    params.set("mode", options.mode);
+  }
+  if (options?.from) {
+    params.set("from", options.from);
+  }
+  return withQuery(`/athletes/${id}/technique`, params);
 }
 
 function clubSlug(value: string) {
@@ -29,6 +60,7 @@ export function competitionFocusHref(input: {
   view?: string | null;
   clubName?: string | null;
   focus?: string | null;
+  from?: string | null;
   hash?: string | null;
 }) {
   const params = new URLSearchParams();
@@ -50,6 +82,9 @@ export function competitionFocusHref(input: {
   }
   if (input.focus) {
     params.set("focus", input.focus);
+  }
+  if (input.from) {
+    params.set("from", input.from);
   }
   const hash = input.hash ? `#${input.hash}` : "";
   return `/competitions?${params.toString()}${hash}`;

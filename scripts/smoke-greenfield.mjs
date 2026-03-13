@@ -90,7 +90,7 @@ try {
 
   const techniqueHref = await page.evaluate(() => {
     const link = [...document.querySelectorAll('a.context-link-card')].find((element) =>
-      element.textContent?.includes("Technique"),
+      element.textContent?.includes("Dive technique"),
     );
     return link?.getAttribute("href") || null;
   });
@@ -100,8 +100,10 @@ try {
   }
 
   await goto(techniqueHref);
-  await waitForText("Dive groups");
-  await waitForText("Recent technical log");
+  await waitForText("Technique brief");
+  await waitForText("Recent dives by group");
+  await page.click('button:has-text("Detailed analysis")');
+  await waitForText("code table");
 
   const techniqueState = await page.evaluate(() => ({
     breadcrumb: document.querySelector(".breadcrumb-trail")?.textContent?.replace(/\s+/g, " ").trim() || "",

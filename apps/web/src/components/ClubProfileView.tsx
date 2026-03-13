@@ -205,12 +205,14 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
   }
 
   const recentCompetitions = detail.competitionHistory.slice(0, 3);
+  const clubContextLabel = `Club profile / ${detail.club.name}`;
   const latestCompetitionHref = detail.latestCompetition
     ? competitionFocusHref({
         competitionId: detail.latestCompetition.competitionId,
         eventName: detail.latestCompetition.featuredEventName,
         view: "club",
         clubName: detail.club.name,
+        from: `${clubContextLabel} / Latest competition`,
       })
     : null;
   const latestDive = detail.recentDives[0] || null;
@@ -223,6 +225,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
         view: "ledger",
         clubName: detail.club.name,
         hash: "ledger-panel",
+        from: `${clubContextLabel} / Latest dive`,
       })
     : null;
 
@@ -288,6 +291,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                 entryId: detail.topResults[0].entryId,
                 view: "athlete",
                 clubName: detail.club.name,
+                from: `${clubContextLabel} / Top result`,
               })}
             >
               <strong>Top result</strong>
@@ -316,6 +320,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                     eventName: competition.featuredEventName,
                     view: "club",
                     clubName: detail.club.name,
+                    from: `${clubContextLabel} / Recent competitions`,
                   })}
                   key={competition.competitionId}
                 >
@@ -359,6 +364,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                   entryId: result.entryId,
                   view: "athlete",
                   clubName: detail.club.name,
+                  from: `${clubContextLabel} / Top results`,
                 })}
                 key={`${result.competitionId}-${result.entryId}-${index}`}
               >
@@ -454,7 +460,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
             {visibleRoster.map((athlete) => (
               <tr key={athlete.athleteId}>
                 <td>
-                  <a href={athleteProfileHref(athlete.athleteId)}>
+                  <a href={athleteProfileHref(athlete.athleteId, { from: `${clubContextLabel} / Athlete roster` })}>
                     <strong>{athlete.athleteName}</strong>
                   </a>
                   <div className="muted">{athlete.birthYear || "Birth year not recorded"}</div>
@@ -516,6 +522,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                           clubName: detail.club.name,
                           focus: "progression",
                           hash: "progression-panel",
+                          from: `${clubContextLabel} / Event coverage`,
                         })}
                       >
                         {formatScore(stat.bestTotal)}
@@ -532,6 +539,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                           eventName: stat.latestEventName,
                           view: "club",
                           clubName: detail.club.name,
+                          from: `${clubContextLabel} / Event coverage`,
                         })}
                       >
                         {stat.latestCompetitionName}
@@ -562,6 +570,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                   eventName: row.featuredEventName,
                   view: "club",
                   clubName: detail.club.name,
+                  from: `${clubContextLabel} / Competition history`,
                 })}
                 key={`${row.competitionId}-${row.featuredEntryId}`}
               >
@@ -629,6 +638,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
                     view: "ledger",
                     clubName: detail.club.name,
                     hash: "ledger-panel",
+                    from: `${clubContextLabel} / Recent dives`,
                   }))
                 }
               >

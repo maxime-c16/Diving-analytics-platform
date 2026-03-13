@@ -1,4 +1,5 @@
 import { applyDivingRules } from "../../../packages/diving-rules";
+import { parseDiveCode } from "../../../packages/dive-code";
 import { db } from "./db";
 import { normalizeCompetitionDate, toTimestamp } from "./dates";
 import { clubSlug, normalizeClubName } from "./strings";
@@ -84,6 +85,33 @@ function buildAthleteIdByIdentity() {
 function buildCanonicalAthleteName(name: string | null | undefined, fallback: string | null | undefined) {
   const candidates = [String(name || "").trim(), String(fallback || "").trim()].filter(Boolean);
   return candidates.sort((left, right) => left.length - right.length || left.localeCompare(right))[0] || null;
+}
+
+function roundMetric(value: number | null) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return null;
+  }
+  return Number(value.toFixed(2));
+}
+
+function average(values: number[]) {
+  if (values.length === 0) {
+    return null;
+  }
+  return roundMetric(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function standardDeviation(values: number[]) {
+  if (values.length < 2) {
+    return null;
+  }
+  const avg = average(values);
+  if (avg === null) {
+    return null;
+  }
+  const variance =
+    values.reduce((sum, value) => sum + Math.pow(value - avg, 2), 0) / values.length;
+  return roundMetric(Math.sqrt(variance));
 }
 
 export function listCompetitions() {
@@ -1068,6 +1096,213 @@ export function getAthleteDetail(id: number) {
     }, new Map<string, number>()),
   ).sort((left, right) => right[1] - left[1])[0];
 
+  const parsedDives = (dives as any[])
+    .map((dive) => ({
+      ...dive,
+      parsed: parseDiveCode(dive.diveCode),
+      family: normalizeEventFamily(dive.eventName, dive.eventType),
+    }))
+    .filter((dive) => dive.parsed.valid && dive.parsed.group);
+
+  const techniqueGroups = Array.from(
+    parsedDives.reduce((map, dive) => {
+      const group = dive.parsed.group!;
+      const current =
+        map.get(group.id) ||
+        {
+          id: group.id,
+          label: group.label,
+          count: 0,
+          scores: [] as number[],
+          difficulties: [] as number[],
+          competitions: new Set<number>(),
+          lastCompetitionDate: null as string | null,
+        };
+
+      current.count += 1;
+      if (typeof dive.finalScore === "number") {
+        current.scores.push(dive.finalScore);
+      }
+      if (typeof dive.difficulty === "number") {
+        current.difficulties.push(dive.difficulty);
+      }
+      current.competitions.add(dive.competitionId);
+      if (toTimestamp(dive.competitionDate) >= toTimestamp(current.lastCompetitionDate)) {
+        current.lastCompetitionDate = dive.competitionDate;
+      }
+      map.set(group.id, current);
+      return map;
+    }, new Map<number, any>()),
+  )
+    .map(([, value]) => ({
+      ...value,
+      averageScore: average(value.scores),
+      bestScore: roundMetric(value.scores.length ? Math.max(...value.scores) : null),
+      averageDifficulty: average(value.difficulties),
+      scoreDeviation: standardDeviation(value.scores),
+      competitionCount: value.competitions.size,
+    }))
+    .sort((left, right) => left.id - right.id);
+
+  const mostReliableGroup =
+    [...techniqueGroups]
+      .filter((group) => group.count >= 3 && typeof group.scoreDeviation === "number")
+      .sort(
+        (left, right) =>
+          (left.scoreDeviation || Number.MAX_SAFE_INTEGER) - (right.scoreDeviation || Number.MAX_SAFE_INTEGER) ||
+          (right.averageScore || 0) - (left.averageScore || 0),
+      )[0] || null;
+
+  const highestScoringGroup =
+    [...techniqueGroups].sort(
+      (left, right) => (right.averageScore || 0) - (left.averageScore || 0) || right.count - left.count,
+    )[0] || null;
+
+  const highestDifficultyGroup =
+    [...techniqueGroups].sort(
+      (left, right) =>
+        (right.averageDifficulty || 0) - (left.averageDifficulty || 0) ||
+        (right.bestScore || 0) - (left.bestScore || 0),
+    )[0] || null;
+
+  const lowSampleGroups = techniqueGroups.filter((group) => group.count < 3).map((group) => group.label);
+
+  const latestCompetitionTimestamp = toTimestamp(latestCompetition?.competitionDate || null);
+  const groupsNotUsedRecently = techniqueGroups
+    .filter((group) => latestCompetitionTimestamp - toTimestamp(group.lastCompetitionDate) > 0)
+    .map((group) => group.label);
+
+  const familyProgress = Array.from(
+    (dives as any[]).reduce((map, dive) => {
+      const family = normalizeEventFamily(dive.eventName, dive.eventType);
+      const current =
+        map.get(family.key) ||
+        {
+          eventFamily: family.key,
+          label: family.label,
+          competitionDates: new Map<string, number[]>(),
+        };
+      const dateKey = dive.competitionDate || `competition-${dive.competitionId}`;
+      const scores = current.competitionDates.get(dateKey) || [];
+      if (typeof dive.finalScore === "number") {
+        scores.push(dive.finalScore);
+        current.competitionDates.set(dateKey, scores);
+      }
+      map.set(family.key, current);
+      return map;
+    }, new Map<string, any>()),
+  ).map(([, value]) => {
+    const points = Array.from(value.competitionDates.entries())
+      .map(([competitionDate, scores]) => ({
+        competitionDate,
+        averageScore: average(scores),
+      }))
+      .filter((point) => typeof point.averageScore === "number")
+      .sort((left, right) => toTimestamp(left.competitionDate) - toTimestamp(right.competitionDate));
+    const improvement =
+      points.length >= 2 && points[0].averageScore !== null && points[points.length - 1].averageScore !== null
+        ? roundMetric(points[points.length - 1].averageScore - points[0].averageScore)
+        : null;
+    return {
+      eventFamily: value.eventFamily,
+      label: value.label,
+      points,
+      improvement,
+    };
+  });
+
+  const mostImprovedArea =
+    [...familyProgress]
+      .filter((family) => typeof family.improvement === "number" && family.improvement > 0.5)
+      .sort((left, right) => (right.improvement || 0) - (left.improvement || 0))[0] || null;
+
+  const strongestFamily =
+    [...eventTypeStats].sort(
+      (left, right) => ((right.bestDive || 0) + (right.bestTotal || 0) / 10) - ((left.bestDive || 0) + (left.bestTotal || 0) / 10),
+    )[0] || null;
+
+  const highestCeiling =
+    [...eventTypeStats].sort((left, right) => (right.bestTotal || 0) - (left.bestTotal || 0))[0] || null;
+
+  const needsReviewGroup =
+    [...techniqueGroups]
+      .filter((group) => group.count >= 3)
+      .sort(
+        (left, right) =>
+          (right.scoreDeviation || 0) - (left.scoreDeviation || 0) ||
+          (right.averageDifficulty || 0) - (left.averageDifficulty || 0),
+      )[0] || null;
+
+  const latestResult =
+    latestCompetition && latestCompetition.eventName
+      ? {
+          label: `${latestCompetition.competitionName} · ${latestCompetition.eventName}`,
+          competitionId: latestCompetition.competitionId,
+          entryId: latestCompetition.entryId,
+          eventName: latestCompetition.eventName,
+          competitionDate: latestCompetition.competitionDate,
+          finalTotal: latestCompetition.finalTotal,
+          rank: latestCompetition.rank,
+        }
+      : null;
+
+  const trainingFocus = needsReviewGroup
+    ? {
+        label: `${needsReviewGroup.label} consistency`,
+        reason: `Highest score variance across repeated attempts in the current log.`,
+      }
+    : lowSampleGroups.length > 0
+      ? {
+          label: `${lowSampleGroups[0]} exposure`,
+          reason: `This group has a low sample size and may need more repetition before analysis is reliable.`,
+        }
+      : highestDifficultyGroup
+        ? {
+            label: `${highestDifficultyGroup.label} under pressure`,
+            reason: `This is the highest-difficulty group in the profile and should stay under active review.`,
+          }
+        : null;
+
+  const competitionTotalsTrend = totalsByCompetition
+    .slice()
+    .reverse()
+    .map((row: any) => ({
+      competitionId: row.competitionId,
+      competitionName: row.competitionName,
+      competitionDate: row.competitionDate,
+      finalTotal: row.finalTotal,
+    }));
+
+  const rankTrend = competitionHistory
+    .slice()
+    .reverse()
+    .map((row) => ({
+      competitionId: row.competitionId,
+      competitionName: row.competitionName,
+      competitionDate: row.competitionDate,
+      rank: row.rank,
+      finalTotal: row.finalTotal,
+    }));
+
+  const familyUsageTrend = totalsByCompetition
+    .slice()
+    .reverse()
+    .map((competition: any) => {
+      const familyCounts = new Map<string, number>();
+      (dives as any[])
+        .filter((dive) => dive.competitionId === competition.competitionId)
+        .forEach((dive) => {
+          const family = normalizeEventFamily(dive.eventName, dive.eventType);
+          familyCounts.set(family.label, (familyCounts.get(family.label) || 0) + 1);
+        });
+      return {
+        competitionId: competition.competitionId,
+        competitionName: competition.competitionName,
+        competitionDate: competition.competitionDate,
+        familyCounts: Object.fromEntries(familyCounts),
+      };
+    });
+
   return {
     athlete: {
       ...athlete,
@@ -1091,6 +1326,64 @@ export function getAthleteDetail(id: number) {
       latestCompetitionDate: latestCompetition?.competitionDate || null,
       recentFormAverage,
       mostUsedDiveCode: mostUsedDiveCode?.[0] || null,
+    },
+    athleteBrief: {
+      latestResult,
+      bestEvent: highestCeiling
+        ? {
+            label: highestCeiling.label,
+            bestTotal: highestCeiling.bestTotal,
+            competitionCount: highestCeiling.competitionCount,
+          }
+        : null,
+      mostImprovedArea: mostImprovedArea
+        ? {
+            label: mostImprovedArea.label,
+            change: mostImprovedArea.improvement,
+          }
+        : null,
+      focusForNextTraining: trainingFocus,
+    },
+    coachingInsights: {
+      strongestFamily: strongestFamily
+        ? {
+            label: strongestFamily.label,
+            bestDive: strongestFamily.bestDive,
+            bestTotal: strongestFamily.bestTotal,
+          }
+        : null,
+      mostUsedCode: mostUsedDiveCode
+        ? {
+            code: mostUsedDiveCode[0],
+            attempts: mostUsedDiveCode[1],
+          }
+        : null,
+      highestCeiling: highestCeiling
+        ? {
+            label: highestCeiling.label,
+            bestTotal: highestCeiling.bestTotal,
+          }
+        : null,
+      needsReview: needsReviewGroup
+        ? {
+            label: `${needsReviewGroup.label} consistency`,
+            scoreDeviation: needsReviewGroup.scoreDeviation,
+            averageScore: needsReviewGroup.averageScore,
+          }
+        : null,
+    },
+    progression: {
+      competitionTotals: competitionTotalsTrend,
+      ranks: rankTrend,
+      familyUsage: familyUsageTrend,
+    },
+    techniqueSummary: {
+      mostReliableGroup,
+      highestScoringGroup,
+      highestDifficultyGroup,
+      lowSampleGroups,
+      groupsNotUsedRecently,
+      groups: techniqueGroups,
     },
     clubHistory,
     latestCompetition,

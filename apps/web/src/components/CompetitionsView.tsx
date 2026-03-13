@@ -166,6 +166,7 @@ export function CompetitionsView(props: {
   const [analysisView, setAnalysisView] = useState("overview");
   const [selectedClub, setSelectedClub] = useState("");
   const [focusTarget, setFocusTarget] = useState("");
+  const [sourceContext, setSourceContext] = useState("");
   const [list, setList] = useState<Competition[]>(props.initialList || []);
   const [detail, setDetail] = useState<CompetitionDetailResponse | null>(props.initialDetail || null);
   const [error, setError] = useState<string | null>(null);
@@ -179,6 +180,7 @@ export function CompetitionsView(props: {
     setSelectedClub(readQueryParam("club"));
     setAnalysisView(readQueryParam("view") || "overview");
     setFocusTarget(readQueryParam("focus"));
+    setSourceContext(readQueryParam("from"));
   }, []);
 
   useEffect(() => {
@@ -519,7 +521,7 @@ export function CompetitionsView(props: {
               ? [
                   {
                     key: "ledger-mode",
-                    label: "Full ledger",
+                    label: "All dives",
                     current: !selectedDiveId,
                     onClick: () => {
                       setAnalysisView("ledger");
@@ -549,9 +551,12 @@ export function CompetitionsView(props: {
           : []),
       ]
     : [];
+  const competitionContextLabel =
+    detail && eventScoped ? `${detail.competition.name} / ${eventScoped.currentEvent}` : "Competition workspace";
 
   return (
     <div className="page-grid">
+      {sourceContext ? <div className="workspace-origin-strip">Opened from: {sourceContext}</div> : null}
       {error ? <div className="notice">{error}</div> : null}
 
       <section className="panel">
@@ -755,7 +760,7 @@ export function CompetitionsView(props: {
                       }}
                       type="button"
                     >
-                      Full ledger
+                      All dives
                     </button>
                     {selectedClub ? (
                       <button
@@ -885,7 +890,13 @@ export function CompetitionsView(props: {
                         </div>
                         <div className="cluster">
                           {eventScoped.selectedMembers.map((member) => (
-                            <a className="chip" href={athleteProfileHref(member.id)} key={member.id}>
+                            <a
+                              className="chip"
+                              href={athleteProfileHref(member.id, {
+                                from: `${competitionContextLabel} / ${eventScoped.isSynchro ? "Pair focus" : "Athlete focus"}`,
+                              })}
+                              key={member.id}
+                            >
                               {member.name}
                             </a>
                           ))}
@@ -1007,7 +1018,9 @@ export function CompetitionsView(props: {
                               {eventScoped.clubRoster.slice(0, visibleClubRosterCount).map((athlete) => (
                                 <a
                                   className="focus-entry-item"
-                                  href={athleteProfileHref(athlete.id)}
+                                  href={athleteProfileHref(athlete.id, {
+                                    from: `${competitionContextLabel} / Club focus / ${selectedClub}`,
+                                  })}
                                   key={athlete.id}
                                 >
                                   <strong>{athlete.name}</strong>
@@ -1073,7 +1086,7 @@ export function CompetitionsView(props: {
                   hidden={analysisView !== "ledger"}
                 >
                   <div className="panel" id="ledger-panel">
-                    <h2>Event dive ledger</h2>
+                    <h2>All dives</h2>
                     <table className="table table-ledger">
                       <thead>
                         <tr>
@@ -1105,7 +1118,12 @@ export function CompetitionsView(props: {
                                       return (
                                         <span key={name}>
                                           {athlete ? (
-                                            <a className="ledger-link" href={athleteProfileHref(athlete.id)}>
+                                            <a
+                                              className="ledger-link"
+                                              href={athleteProfileHref(athlete.id, {
+                                                from: `${competitionContextLabel} / All dives`,
+                                              })}
+                                            >
                                               {athlete.name}
                                             </a>
                                           ) : (

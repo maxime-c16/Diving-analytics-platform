@@ -245,8 +245,25 @@ textarea {
   color: #b49e7d;
 }
 
+.workspace-origin-strip {
+  padding: 10px 12px;
+  border: 1px solid rgba(140, 61, 45, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 248, 242, 0.88);
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
 .context-panel {
   padding-top: 16px;
+}
+
+.mode-panel .toolbar .button.secondary[data-active="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .context-links {
@@ -279,6 +296,16 @@ textarea {
   border-color: var(--border-strong);
   background: #f7f3ea;
   outline: 0;
+}
+
+.context-link-card-static {
+  cursor: default;
+}
+
+.context-link-card-static:hover,
+.context-link-card-static:focus-visible {
+  border-color: var(--border);
+  background: #fffdf9;
 }
 
 .rank-legend {
@@ -1005,6 +1032,82 @@ textarea {
   padding-bottom: 8px;
 }
 
+.coach-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.coach-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffdf9;
+}
+
+.coach-card strong {
+  font-size: 0.84rem;
+}
+
+.coach-card span {
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.coach-card small {
+  color: var(--text-soft);
+  line-height: 1.35;
+}
+
+.coach-card-warning {
+  background: #fcf7ef;
+  border-color: rgba(176, 111, 66, 0.24);
+}
+
+.trend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.trend-card {
+  display: grid;
+  gap: 10px;
+  min-height: 112px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fffdf9;
+}
+
+.trend-card-wide {
+  grid-column: 1 / -1;
+}
+
+.trend-empty {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.trend-line {
+  width: 100%;
+  height: 64px;
+  color: var(--accent);
+}
+
+.trend-usage-list {
+  display: grid;
+  gap: 8px;
+}
+
+.trend-usage-row {
+  display: grid;
+  gap: 3px;
+}
+
 .between-row {
   display: flex;
   align-items: baseline;
@@ -1422,6 +1525,8 @@ textarea {
   .metrics,
   .two-column,
   .profile-grid,
+  .coach-grid,
+  .trend-grid,
   .focus-layout,
   .analysis-layout,
   .metrics-3,

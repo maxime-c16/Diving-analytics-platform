@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseDiveCode, type DiveGroupId } from "../../../../packages/dive-code";
 import { fetchJson } from "./api";
-import { competitionFocusHref } from "./links";
+import { athleteProfileHref, competitionFocusHref } from "./links";
 import { SortableHeader } from "./SortableHeader";
 import { nextSortDirection, parseCompetitionDate, type SortDirection } from "./tableSorting";
+
+type GroupSignal = {
+  label: string;
+  count: number;
+  averageScore: number | null;
+  averageDifficulty: number | null;
+  bestScore: number | null;
+  scoreDeviation: number | null;
+};
 
 type AthleteTechniqueProfile = {
   athlete: {
@@ -12,6 +21,22 @@ type AthleteTechniqueProfile = {
     diveCount: number;
     mostUsedDiveCode: string | null;
     bestTotal: number | null;
+  };
+  athleteBrief?: {
+    latestResult: {
+      label: string;
+      competitionId: number;
+      entryId: number | null;
+      eventName: string | null;
+    } | null;
+  };
+  techniqueSummary?: {
+    mostReliableGroup: GroupSignal | null;
+    highestScoringGroup: GroupSignal | null;
+    highestDifficultyGroup: GroupSignal | null;
+    lowSampleGroups: string[];
+    groupsNotUsedRecently: string[];
+    groups: GroupSignal[];
   };
   dives: Array<{
     id: number;
@@ -31,12 +56,47 @@ type AthleteTechniqueProfile = {
 };
 
 type CodeSortKey = "code" | "attempts" | "average" | "best" | "difficulty" | "latest";
+type ViewMode = "summary" | "detailed";
 
 function formatScore(value: number | null) {
   if (typeof value !== "number") {
     return "n/a";
   }
   return value.toFixed(2).replace(/\.00$/, "");
+}
+
+function readSearchState(): { group: string; mode: ViewMode; from: string | null } {
+  if (typeof window === "undefined") {
+    return { group: "", mode: "summary" as ViewMode, from: null as string | null };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get("mode") === "detailed" ? "detailed" : "summary";
+  return {
+    group: params.get("group") || "",
+    mode,
+    from: params.get("from") || null,
+  };
+}
+
+function writeSearchState(input: { groupId?: DiveGroupId | null; mode?: ViewMode | null; from?: string | null }) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const url = new URL(window.location.href);
+  if (input.groupId) {
+    url.searchParams.set("group", String(input.groupId));
+  } else {
+    url.searchParams.delete("group");
+  }
+  if (input.mode) {
+    url.searchParams.set("mode", input.mode);
+  } else {
+    url.searchParams.delete("mode");
+  }
+  if (input.from) {
+    url.searchParams.set("from", input.from);
+  }
+  window.history.replaceState({}, "", url.toString());
 }
 
 export function AthleteTechniqueView(props: {
@@ -46,6 +106,8 @@ export function AthleteTechniqueView(props: {
   const [detail, setDetail] = useState<AthleteTechniqueProfile | null>(props.initialDetail || null);
   const [error, setError] = useState<string | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<DiveGroupId | null>(null);
+  const [sourceContext, setSourceContext] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("summary");
   const [codeQuery, setCodeQuery] = useState("");
   const [codeSortKey, setCodeSortKey] = useState<CodeSortKey>("attempts");
   const [codeSortDirection, setCodeSortDirection] = useState<SortDirection>("desc");
@@ -78,7 +140,6 @@ export function AthleteTechniqueView(props: {
           map.get(group.id) ||
           {
             id: group.id,
-            shortLabel: group.shortLabel,
             label: group.label,
             description: group.description,
             count: 0,
@@ -130,12 +191,21 @@ export function AthleteTechniqueView(props: {
   }, [parsedDives]);
 
   useEffect(() => {
-    setSelectedGroup(groupCards[0]?.id || null);
+    const state = readSearchState();
+    const requestedGroup = Number(state.group);
+    const validRequestedGroup =
+      requestedGroup && groupCards.some((group) => group.id === requestedGroup)
+        ? (requestedGroup as DiveGroupId)
+        : null;
+    setSelectedGroup(validRequestedGroup || groupCards[0]?.id || null);
+    setViewMode(state.mode);
+    setSourceContext(state.from);
     setCodeQuery("");
     setVisibleRecentCount(5);
-  }, [props.athleteId, groupCards.length]);
+  }, [props.athleteId, groupCards]);
 
   const selectedGroupCard = groupCards.find((group) => group.id === selectedGroup) || groupCards[0] || null;
+  const athleteContextLabel = detail ? `Dive technique / ${detail.athlete.name}` : "Dive technique";
 
   const codeRows = useMemo(() => {
     if (!selectedGroupCard) {
@@ -249,7 +319,7 @@ export function AthleteTechniqueView(props: {
       .sort(
         (left, right) =>
           parseCompetitionDate(right.competitionDate) - parseCompetitionDate(left.competitionDate) ||
-          (right.id - left.id),
+          right.id - left.id,
       );
   }, [parsedDives, selectedGroupCard]);
 
@@ -275,6 +345,18 @@ export function AthleteTechniqueView(props: {
     };
   }, [groupCards.length, parsedDives]);
 
+  const latestResultHref =
+    detail?.athleteBrief?.latestResult
+      ? competitionFocusHref({
+          competitionId: detail.athleteBrief.latestResult.competitionId,
+          eventName: detail.athleteBrief.latestResult.eventName,
+          entryId: detail.athleteBrief.latestResult.entryId,
+          from: `${athleteContextLabel} / Review latest result`,
+        })
+      : null;
+
+  const latestTwistingDive = recentDives.find((dive) => dive.parsed.group?.id === 5);
+
   function cycleCodeSort(key: CodeSortKey) {
     const nextDirection = nextSortDirection(codeSortKey, codeSortDirection, key, {
       textMode: key === "code",
@@ -283,16 +365,29 @@ export function AthleteTechniqueView(props: {
     setCodeSortDirection(nextDirection);
   }
 
+  function selectGroup(groupId: DiveGroupId) {
+    setSelectedGroup(groupId);
+    setVisibleRecentCount(5);
+    writeSearchState({ groupId, mode: viewMode, from: sourceContext });
+  }
+
+  function changeMode(mode: ViewMode) {
+    setViewMode(mode);
+    writeSearchState({ groupId: selectedGroup, mode, from: sourceContext });
+  }
+
   if (error) {
     return <div className="notice">{error}</div>;
   }
 
   if (!detail) {
-    return <div className="notice">Loading technique workspace...</div>;
+    return <div className="notice">Loading dive technique...</div>;
   }
 
   return (
     <div className="page-grid">
+      {sourceContext ? <div className="workspace-origin-strip">Opened from: {sourceContext}</div> : null}
+
       <section className="profile-hero panel">
         <div>
           <h2>{detail.athlete.name}</h2>
@@ -305,29 +400,160 @@ export function AthleteTechniqueView(props: {
         </div>
       </section>
 
+      <section className="panel mode-panel">
+        <div className="section-head">
+          <h2>Dive technique mode</h2>
+          <span className="muted">Start with coaching takeaways, then expand into the full code table</span>
+        </div>
+        <div className="toolbar">
+          <button className="button secondary" data-active={viewMode === "summary"} onClick={() => changeMode("summary")} type="button">
+            Summary
+          </button>
+          <button className="button secondary" data-active={viewMode === "detailed"} onClick={() => changeMode("detailed")} type="button">
+            Detailed analysis
+          </button>
+        </div>
+      </section>
+
       <section className="metrics">
         <div className="metric">
           <span>Groups used</span>
           <strong>{technicalMetrics.groupsUsed}</strong>
+          <small>{technicalMetrics.uniqueCodes} unique dive codes</small>
         </div>
         <div className="metric">
-          <span>Unique codes</span>
-          <strong>{technicalMetrics.uniqueCodes}</strong>
+          <span>Most reliable group</span>
+          <strong>{detail.techniqueSummary?.mostReliableGroup?.label || "n/a"}</strong>
+          <small>
+            {detail.techniqueSummary?.mostReliableGroup?.scoreDeviation
+              ? `variance ${formatScore(detail.techniqueSummary.mostReliableGroup.scoreDeviation)}`
+              : "Need more repeated attempts"}
+          </small>
         </div>
         <div className="metric">
-          <span>Flying dives</span>
-          <strong>{technicalMetrics.flyingDives}</strong>
+          <span>Highest scoring group</span>
+          <strong>{detail.techniqueSummary?.highestScoringGroup?.label || "n/a"}</strong>
+          <small>{formatScore(detail.techniqueSummary?.highestScoringGroup?.bestScore || null)}</small>
         </div>
         <div className="metric">
-          <span>Twisting or armstand</span>
-          <strong>{technicalMetrics.twistingOrArmstand}</strong>
+          <span>Highest difficulty group</span>
+          <strong>{detail.techniqueSummary?.highestDifficultyGroup?.label || "n/a"}</strong>
+          <small>avg DD {formatScore(detail.techniqueSummary?.highestDifficultyGroup?.averageDifficulty || null)}</small>
+        </div>
+      </section>
+
+      <section className="two-column">
+        <div className="panel">
+          <div className="section-head">
+            <h2>Technique brief</h2>
+            <span className="muted">Coaching questions first, code detail second</span>
+          </div>
+          <div className="coach-grid">
+            <div className="coach-card">
+              <strong>Most reliable group</strong>
+              <span>{detail.techniqueSummary?.mostReliableGroup?.label || "n/a"}</span>
+              <small>
+                {detail.techniqueSummary?.mostReliableGroup?.scoreDeviation
+                  ? `Lowest variance across repeated dives`
+                  : "Not enough repeated attempts"}
+              </small>
+            </div>
+            <div className="coach-card">
+              <strong>Highest scoring group</strong>
+              <span>{detail.techniqueSummary?.highestScoringGroup?.label || "n/a"}</span>
+              <small>best score {formatScore(detail.techniqueSummary?.highestScoringGroup?.bestScore || null)}</small>
+            </div>
+            <div className="coach-card">
+              <strong>Highest difficulty group</strong>
+              <span>{detail.techniqueSummary?.highestDifficultyGroup?.label || "n/a"}</span>
+              <small>avg DD {formatScore(detail.techniqueSummary?.highestDifficultyGroup?.averageDifficulty || null)}</small>
+            </div>
+            <div className="coach-card coach-card-warning">
+              <strong>Low sample groups</strong>
+              <span>
+                {detail.techniqueSummary?.lowSampleGroups.length
+                  ? detail.techniqueSummary.lowSampleGroups.slice(0, 2).join(" · ")
+                  : "None"}
+              </span>
+              <small>
+                {detail.techniqueSummary?.lowSampleGroups.length
+                  ? "More attempts needed before trusting the trend"
+                  : "All active groups have enough history"}
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="section-head">
+            <h2>Signals to watch</h2>
+            <span className="muted">Gaps, pressure points, and next technical review paths</span>
+          </div>
+          <div className="stack compact-stack">
+            <div className="list-item compact-item">
+              <strong>Groups not used recently</strong>
+              <div className="muted">
+                {detail.techniqueSummary?.groupsNotUsedRecently.length
+                  ? detail.techniqueSummary.groupsNotUsedRecently.join(" · ")
+                  : "All active groups were present in the latest competition"}
+              </div>
+            </div>
+            <div className="list-item compact-item">
+              <strong>Flying dives</strong>
+              <div className="muted">{technicalMetrics.flyingDives} flying attempts recorded</div>
+            </div>
+            <div className="list-item compact-item">
+              <strong>Twisting or armstand exposure</strong>
+              <div className="muted">{technicalMetrics.twistingOrArmstand} attempts across complex directional groups</div>
+            </div>
+            <div className="list-item compact-item">
+              <strong>Highest difficulty seen</strong>
+              <div className="muted">DD {formatScore(technicalMetrics.maxDifficulty)}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel context-panel">
+        <div className="section-head">
+          <h2>Quick paths</h2>
+          <span className="muted">Move back into live performance context without rebuilding the path</span>
+        </div>
+        <div className="context-links">
+          <a className="context-link-card" href={athleteProfileHref(props.athleteId, { from: `${athleteContextLabel} / Athlete profile` })}>
+            <strong>Athlete profile</strong>
+            <span>Return to the athlete overview and performance brief</span>
+          </a>
+          {latestResultHref ? (
+            <a className="context-link-card" href={latestResultHref}>
+              <strong>Review latest result</strong>
+              <span>{detail.athleteBrief?.latestResult?.label}</span>
+            </a>
+          ) : null}
+          {latestTwistingDive ? (
+            <a
+              className="context-link-card"
+              href={competitionFocusHref({
+                competitionId: latestTwistingDive.competitionId,
+                eventName: latestTwistingDive.eventName,
+                entryId: latestTwistingDive.entryId,
+                diveId: latestTwistingDive.id,
+                view: "ledger",
+                hash: "ledger-panel",
+                from: `${athleteContextLabel} / Review twisting dives`,
+              })}
+            >
+              <strong>Review twisting dives</strong>
+              <span>{latestTwistingDive.diveCode} · {latestTwistingDive.competitionName}</span>
+            </a>
+          ) : null}
         </div>
       </section>
 
       <section className="panel">
         <div className="section-head">
           <h2>Dive groups</h2>
-          <span className="muted">Official dive groups from the World Aquatics code structure</span>
+          <span className="muted">Pick one group to inspect its repeated code patterns and competition attempts</span>
         </div>
         <div className="group-card-grid">
           {groupCards.map((group) => (
@@ -335,15 +561,13 @@ export function AthleteTechniqueView(props: {
               className="group-card"
               data-active={group.id === selectedGroupCard?.id}
               key={group.id}
-              onClick={() => {
-                setSelectedGroup(group.id);
-                setVisibleRecentCount(5);
-              }}
+              onClick={() => selectGroup(group.id)}
               type="button"
             >
               <div className="group-card-head">
                 <div>
                   <strong>{group.label}</strong>
+                  <div className="muted">{group.description}</div>
                 </div>
                 <span>{group.share}%</span>
               </div>
@@ -353,7 +577,6 @@ export function AthleteTechniqueView(props: {
                 <span>avg {formatScore(group.averageScore)}</span>
                 <span>best {formatScore(group.bestScore)}</span>
               </div>
-              <div className="muted technical-note">{group.description}</div>
             </button>
           ))}
         </div>
@@ -364,10 +587,61 @@ export function AthleteTechniqueView(props: {
           <section className="two-column">
             <div className="panel">
               <div className="section-head">
+                <h2>{selectedGroupCard.label} profile</h2>
+                <span className="muted">{selectedGroupCard.count} recorded dives</span>
+              </div>
+              <div className="stack compact-stack">
+                <div className="list-item compact-item">
+                  <strong>Share of current profile</strong>
+                  <div className="muted">{selectedGroupCard.share}% of recorded dives</div>
+                </div>
+                <div className="list-item compact-item">
+                  <strong>Average score</strong>
+                  <div className="muted">{formatScore(selectedGroupCard.averageScore)}</div>
+                </div>
+                <div className="list-item compact-item">
+                  <strong>Average difficulty</strong>
+                  <div className="muted">{formatScore(selectedGroupCard.averageDifficulty)}</div>
+                </div>
+                <div className="list-item compact-item">
+                  <strong>Technical note</strong>
+                  <div className="muted">
+                    {selectedGroupCard.flyingCount > 0
+                      ? `${selectedGroupCard.flyingCount} flying attempts recorded in this group.`
+                      : selectedGroupCard.twistCount > 0
+                        ? `${selectedGroupCard.twistCount} twisting or directional attempts recorded in this group.`
+                        : "No extra flying or directional markers in the current sample."}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="section-head">
+                <h2>{selectedGroupCard.label} strongest codes</h2>
+                <span className="muted">Top repeated codes before the full table</span>
+              </div>
+              <div className="stack compact-stack">
+                {codeRows.slice(0, 4).map((row) => (
+                  <div className="list-item compact-item" key={row.code}>
+                    <div className="between-row">
+                      <strong>{row.code}</strong>
+                      <span>{formatScore(row.bestScore)}</span>
+                    </div>
+                    <div className="muted">
+                      {row.attempts} attempts · avg {formatScore(row.averageScore)} · DD {formatScore(row.averageDifficulty)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {viewMode === "detailed" ? (
+            <section className="panel">
+              <div className="section-head">
                 <h2>{selectedGroupCard.label} code table</h2>
-                <span className="muted">
-                  Showing {codeRows.length} codes
-                </span>
+                <span className="muted">Showing {codeRows.length} codes</span>
               </div>
               <div className="section-toolbar">
                 <label className="directory-field section-search-field">
@@ -385,52 +659,22 @@ export function AthleteTechniqueView(props: {
                 <thead>
                   <tr>
                     <th>
-                      <SortableHeader
-                        active={codeSortKey === "code"}
-                        direction={codeSortDirection}
-                        label="Code"
-                        onClick={() => cycleCodeSort("code")}
-                      />
+                      <SortableHeader active={codeSortKey === "code"} direction={codeSortDirection} label="Code" onClick={() => cycleCodeSort("code")} />
                     </th>
                     <th>
-                      <SortableHeader
-                        active={codeSortKey === "attempts"}
-                        direction={codeSortDirection}
-                        label="Attempts"
-                        onClick={() => cycleCodeSort("attempts")}
-                      />
+                      <SortableHeader active={codeSortKey === "attempts"} direction={codeSortDirection} label="Attempts" onClick={() => cycleCodeSort("attempts")} />
                     </th>
                     <th>
-                      <SortableHeader
-                        active={codeSortKey === "average"}
-                        direction={codeSortDirection}
-                        label="Average"
-                        onClick={() => cycleCodeSort("average")}
-                      />
+                      <SortableHeader active={codeSortKey === "average"} direction={codeSortDirection} label="Average" onClick={() => cycleCodeSort("average")} />
                     </th>
                     <th>
-                      <SortableHeader
-                        active={codeSortKey === "best"}
-                        direction={codeSortDirection}
-                        label="Best"
-                        onClick={() => cycleCodeSort("best")}
-                      />
+                      <SortableHeader active={codeSortKey === "best"} direction={codeSortDirection} label="Best" onClick={() => cycleCodeSort("best")} />
                     </th>
                     <th>
-                      <SortableHeader
-                        active={codeSortKey === "difficulty"}
-                        direction={codeSortDirection}
-                        label="Avg DD"
-                        onClick={() => cycleCodeSort("difficulty")}
-                      />
+                      <SortableHeader active={codeSortKey === "difficulty"} direction={codeSortDirection} label="Avg DD" onClick={() => cycleCodeSort("difficulty")} />
                     </th>
                     <th>
-                      <SortableHeader
-                        active={codeSortKey === "latest"}
-                        direction={codeSortDirection}
-                        label="Latest"
-                        onClick={() => cycleCodeSort("latest")}
-                      />
+                      <SortableHeader active={codeSortKey === "latest"} direction={codeSortDirection} label="Latest" onClick={() => cycleCodeSort("latest")} />
                     </th>
                   </tr>
                 </thead>
@@ -449,6 +693,7 @@ export function AthleteTechniqueView(props: {
                           diveId: row.bestDiveId,
                           view: "ledger",
                           hash: "ledger-panel",
+                          from: `${athleteContextLabel} / ${selectedGroupCard.label} code table`,
                         });
                       }}
                     >
@@ -468,47 +713,13 @@ export function AthleteTechniqueView(props: {
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            <div className="panel">
-              <h2>{selectedGroupCard.label} profile</h2>
-              <div className="stack compact-stack">
-                <div className="list-item compact-item">
-                  <strong>Official group</strong>
-                  <div className="muted">{selectedGroupCard.label}</div>
-                </div>
-                <div className="list-item compact-item">
-                  <strong>Group share</strong>
-                  <div className="muted">{selectedGroupCard.share}% of recorded dives</div>
-                </div>
-                <div className="list-item compact-item">
-                  <strong>Average score</strong>
-                  <div className="muted">{formatScore(selectedGroupCard.averageScore)}</div>
-                </div>
-                <div className="list-item compact-item">
-                  <strong>Average DD</strong>
-                  <div className="muted">{formatScore(selectedGroupCard.averageDifficulty)}</div>
-                </div>
-                <div className="list-item compact-item">
-                  <strong>Technical note</strong>
-                  <div className="muted">
-                    {selectedGroupCard.flyingCount > 0
-                      ? `${selectedGroupCard.flyingCount} flying dives recorded in this family.`
-                      : selectedGroupCard.twistCount > 0
-                        ? `${selectedGroupCard.twistCount} twisting or directional attempts recorded in this family.`
-                        : "No additional flying or twisting marker recorded in this family."}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           <section className="panel">
             <div className="section-head">
-              <h2>Recent technical log</h2>
-              <span className="muted">
-                Showing {visibleRecentDives.length} of {recentDives.length}
-              </span>
+              <h2>Recent dives by group</h2>
+              <span className="muted">Showing {visibleRecentDives.length} of {recentDives.length}</span>
             </div>
             <table className="table table-clickable">
               <thead>
@@ -533,6 +744,7 @@ export function AthleteTechniqueView(props: {
                         diveId: dive.id,
                         view: "ledger",
                         hash: "ledger-panel",
+                        from: `${athleteContextLabel} / ${selectedGroupCard.label} recent dives`,
                       }))
                     }
                   >
@@ -554,11 +766,7 @@ export function AthleteTechniqueView(props: {
             </table>
             {visibleRecentDives.length < recentDives.length ? (
               <div style={{ marginTop: 14 }}>
-                <button
-                  className="button secondary"
-                  onClick={() => setVisibleRecentCount((count) => count + 5)}
-                  type="button"
-                >
+                <button className="button secondary" onClick={() => setVisibleRecentCount((count) => count + 5)} type="button">
                   Show 5 more
                 </button>
               </div>
