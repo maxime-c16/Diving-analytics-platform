@@ -273,8 +273,8 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
 
       <section className="panel mode-panel">
         <div className="section-head">
-          <h2>Club profile mode</h2>
-          <span className="muted">Start with the team brief, then expand into the full roster and competition archive</span>
+          <h2>Club view</h2>
+          <span className="muted">Start with the team brief, then expand into the full roster and competition archive when you need the detail</span>
         </div>
         <div className="toolbar">
           <button className="button secondary" data-active={viewMode === "summary"} onClick={() => setViewMode("summary")} type="button">
@@ -349,7 +349,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
 
         <div className="panel">
           <div className="section-head">
-            <h2>Coach interpretation</h2>
+            <h2>Coaching read</h2>
             <span className="muted">A fast reading of the current club footprint</span>
           </div>
           <div className="coach-grid">
@@ -369,7 +369,7 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
               <small>{competitionTrend.join(" · ") || "Only one competition recorded"}</small>
             </div>
             <div className="coach-card coach-card-warning">
-              <strong>Needs more exposure</strong>
+              <strong>Needs more reps</strong>
               <span>{underusedFamily?.label || "None"}</span>
               <small>
                 {underusedFamily
@@ -381,9 +381,41 @@ export function ClubProfileView(props: { clubSlug: string; initialDetail?: ClubD
         </div>
       </section>
 
+      <section className="panel">
+        <div className="section-head">
+          <h2>Club pulse</h2>
+          <span className="muted">A light read on how active, broad, and competition-ready this group looks right now</span>
+        </div>
+        <div className="trend-grid">
+          <div className="trend-card">
+            <strong>Recent rhythm</strong>
+            <span>{detail.club.competitionCount} competitions logged</span>
+            <small>{competitionTrend.join(" · ") || "Only one competition recorded"}</small>
+          </div>
+          <div className="trend-card">
+            <strong>Current spread</strong>
+            <span>{detail.eventTypeStats.length} event families</span>
+            <small>{strongestFamily ? `${strongestFamily.label} is the deepest current lane` : "No event-family spread recorded"}</small>
+          </div>
+          <div className="trend-card trend-card-wide">
+            <strong>Roster balance</strong>
+            <span>
+              {mostActiveAthlete
+                ? `${mostActiveAthlete.athleteName} carries the highest volume with ${mostActiveAthlete.diveCount} logged dives`
+                : "No roster activity recorded"}
+            </span>
+            <small>
+              {underusedFamily
+                ? `${underusedFamily.label} has the lightest current coverage and is the clearest development lane`
+                : "The current roster coverage looks balanced across the logged event families"}
+            </small>
+          </div>
+        </div>
+      </section>
+
       <section className="panel context-panel">
         <div className="section-head">
-          <h2>Next actions</h2>
+          <h2>Review next</h2>
           <span className="muted">Open the live competition context without rebuilding the path yourself</span>
         </div>
         <div className="context-links">

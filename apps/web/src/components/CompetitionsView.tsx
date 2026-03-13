@@ -564,9 +564,18 @@ export function CompetitionsView(props: {
   const leaderEntry = eventScoped?.entries[0] || null;
   const secondEntry = eventScoped?.entries[1] || null;
   const leadingClub = eventScoped?.eventClubs[0] || null;
-  const eventPressureNote =
+  const leaderMargin =
     leaderEntry && secondEntry && typeof leaderEntry.finalTotal === "number" && typeof secondEntry.finalTotal === "number"
-      ? leaderEntry.finalTotal - secondEntry.finalTotal <= 12
+      ? leaderEntry.finalTotal - secondEntry.finalTotal
+      : null;
+  const repeatedCode = eventScoped?.diveCodeBreakdown[0] || null;
+  const repeatedCodeShare =
+    repeatedCode && eventScoped?.dives.length
+      ? Math.round((repeatedCode.count / Math.max(eventScoped.dives.length, 1)) * 100)
+      : null;
+  const eventPressureNote =
+    leaderMargin !== null
+      ? leaderMargin <= 12
         ? "Tight field at the top of this event."
         : "Clear separation at the top of this event."
       : "Not enough ranked entries to assess separation.";
@@ -632,8 +641,8 @@ export function CompetitionsView(props: {
 
           <section className="panel mode-panel">
             <div className="section-head">
-              <h2>Competition workspace mode</h2>
-              <span className="muted">Start with the event brief, then expand into the full analysis workspace</span>
+              <h2>Competition view</h2>
+              <span className="muted">Start with the event story, then expand into the full competition review when needed</span>
             </div>
             <div className="toolbar">
               <button className="button secondary" data-active={workspaceMode === "summary"} onClick={() => setWorkspaceMode("summary")} type="button">
@@ -648,8 +657,8 @@ export function CompetitionsView(props: {
           <section className="two-column">
             <div className="panel">
               <div className="section-head">
-                <h2>Competition brief</h2>
-                <span className="muted">What happened in the selected event and where to review it next</span>
+                <h2>Event brief</h2>
+                <span className="muted">What happened in this event, who set the pace, and where to review it next</span>
               </div>
               <div className="stack compact-stack">
                 <div className="list-item compact-item">
@@ -683,7 +692,7 @@ export function CompetitionsView(props: {
 
             <div className="panel">
               <div className="section-head">
-                <h2>Coach interpretation</h2>
+                <h2>Coaching read</h2>
                 <span className="muted">A quick read before opening the deeper result tables</span>
               </div>
               <div className="coach-grid">
@@ -703,7 +712,7 @@ export function CompetitionsView(props: {
                   <small>{eventScoped.eventClubs.length} clubs represented in the selected event</small>
                 </div>
                 <div className="coach-card coach-card-warning">
-                  <strong>Needs review</strong>
+                  <strong>Worth a second look</strong>
                   <span>{eventScoped.diveCodeBreakdown[0]?.diveCode || "No dive-code alert"}</span>
                   <small>
                     {eventScoped.diveCodeBreakdown[0]
@@ -715,10 +724,42 @@ export function CompetitionsView(props: {
             </div>
           </section>
 
+          <section className="panel">
+            <div className="section-head">
+              <h2>Field pulse</h2>
+              <span className="muted">Light signals that explain how competitive and varied this event feels before you open the full review</span>
+            </div>
+            <div className="trend-grid">
+              <div className="trend-card">
+                <strong>Margin at the top</strong>
+                <span>{leaderMargin !== null ? `${formatScore(leaderMargin)} points` : "n/a"}</span>
+                <small>{eventPressureNote}</small>
+              </div>
+              <div className="trend-card">
+                <strong>Club spread</strong>
+                <span>{eventScoped.eventClubs.length} clubs</span>
+                <small>{leadingClub ? `${leadingClub} currently leads the field signal` : "No club signal recorded"}</small>
+              </div>
+              <div className="trend-card trend-card-wide">
+                <strong>Code concentration</strong>
+                <span>
+                  {repeatedCode
+                    ? `${repeatedCode.diveCode} appears ${repeatedCode.count} times${repeatedCodeShare !== null ? ` (${repeatedCodeShare}% of logged dives)` : ""}`
+                    : "No repeated dive-code pattern recorded"}
+                </span>
+                <small>
+                  {repeatedCode
+                    ? `Average score ${formatScore(repeatedCode.averageScore)} on the most-used code in this event`
+                    : "Open detailed analysis if you want the full dive-code mix"}
+                </small>
+              </div>
+            </div>
+          </section>
+
           <section className="panel context-panel">
             <div className="section-head">
-              <h2>Next actions</h2>
-              <span className="muted">Open the most useful review path instead of starting from the full table stack</span>
+              <h2>Review next</h2>
+              <span className="muted">Use these guided entry points instead of starting from the full table stack</span>
             </div>
             <div className="context-links">
               {leaderEntry ? (
@@ -745,7 +786,7 @@ export function CompetitionsView(props: {
                   writeQueryParam("view", "overview");
                 }}
               >
-                <strong>Open event overview</strong>
+                <strong>Open event summary</strong>
                 <span>{eventScoped.currentEvent}</span>
               </a>
               {leaderEntry ? (
@@ -773,7 +814,7 @@ export function CompetitionsView(props: {
                     openClubFocus(leadingClub);
                   }}
                 >
-                  <strong>Open club focus</strong>
+                  <strong>Open club view</strong>
                   <span>{leadingClub}</span>
                 </a>
               ) : null}
@@ -782,7 +823,7 @@ export function CompetitionsView(props: {
 
           <section className="profile-grid">
             <div className="panel">
-              <h2>Event spotlight</h2>
+              <h2>Who to review first</h2>
               <div className="stack compact-stack">
                 {eventScoped.entries.slice(0, 4).map((entry) => (
                   <a
@@ -837,7 +878,7 @@ export function CompetitionsView(props: {
           </section>
 
           <section className="panel">
-            <h2>Competition workspace</h2>
+            <h2>Competition review</h2>
             {workspaceCrumbs.length > 0 ? (
               <div className="workspace-context" aria-label="Competition context trail">
                 {workspaceCrumbs.map((crumb, index) => (
@@ -962,7 +1003,7 @@ export function CompetitionsView(props: {
                       }}
                       type="button"
                     >
-                      Event overview
+                      Event summary
                     </button>
                     <button
                       className="toggle-pill"
@@ -996,7 +1037,7 @@ export function CompetitionsView(props: {
                         }}
                         type="button"
                       >
-                        Club focus
+                        Club view
                       </button>
                     ) : null}
                   </div>
@@ -1019,7 +1060,7 @@ export function CompetitionsView(props: {
                   hidden={analysisView !== "overview"}
                 >
                   <div className="two-column">
-                    <div className="panel">
+                      <div className="panel">
                       <h2>{eventScoped.isSynchro ? "Pair leaderboard" : "Event leaderboard"}</h2>
                       <table className="table">
                         <thead>
@@ -1064,7 +1105,7 @@ export function CompetitionsView(props: {
                     </div>
 
                     <div className="panel">
-                      <h2>Dive code mix</h2>
+                      <h2>Dive-code mix</h2>
                       <div className="stack compact-stack">
                         {eventScoped.diveCodeBreakdown.map((item) => (
                           <div className="list-item compact-item" key={item.diveCode}>
@@ -1098,7 +1139,7 @@ export function CompetitionsView(props: {
                   {eventScoped.selectedEntry ? (
                     <div className="focus-layout">
                     <div className="panel focus-summary-panel">
-                      <h2>{eventScoped.isSynchro ? "Selected pair" : "Selected athlete in event"}</h2>
+                      <h2>{eventScoped.isSynchro ? "Selected pair" : "Selected athlete"}</h2>
                       <div className="stack compact-stack">
                         <div className="list-item compact-item">
                           <strong>{eventScoped.selectedEntry.entryName}</strong>
@@ -1221,7 +1262,7 @@ export function CompetitionsView(props: {
                   {selectedClub ? (
                     <div className="two-column">
                       <div className="panel">
-                        <h2>Club focus</h2>
+                        <h2>Club view</h2>
                         <div className="stack compact-stack">
                           <div className="list-item compact-item">
                             <strong>{selectedClub}</strong>
@@ -1298,7 +1339,7 @@ export function CompetitionsView(props: {
                     </div>
                   ) : (
                     <div className="panel">
-                      <h2>Club focus</h2>
+                      <h2>Club view</h2>
                       <p className="muted">Open this view from a club profile to keep the competition filtered to one club.</p>
                     </div>
                   )}
