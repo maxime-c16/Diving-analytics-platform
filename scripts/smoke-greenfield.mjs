@@ -29,27 +29,103 @@ page.on("response", (response) => {
   }
 });
 
-async function assertText(url, text) {
-  await page.goto(`${webBaseUrl}${url}`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(`text=${text}`, { timeout: 15000 });
+async function goto(url) {
+  await page.goto(`${webBaseUrl}${url}`, { waitUntil: "networkidle" });
+}
+
+async function waitForText(text, timeout = 20000) {
+  await page.waitForSelector(`text=${text}`, { timeout });
 }
 
 try {
-  await assertText("/", "PSV Master Diving Cup 2026");
-  await assertText("/competitions?id=1", "2039");
-  await assertText("/athletes/151", "Fanny BOUVET");
-
-  await page.goto(`${webBaseUrl}/upload`, { waitUntil: "domcontentloaded" });
+  await goto("/upload");
   await page.setInputFiles('input[type="file"]', pdfPath);
   await page.click('button[type="submit"]');
-  await page.waitForSelector("text=Imported event program", { timeout: 15000 });
+
+  await waitForText("Intake review");
+  await waitForText("Imported event program");
+
+  const importState = await page.evaluate(() => {
+    const competitionName =
+      document.querySelector(".metrics .metric strong")?.textContent?.trim() || null;
+    const openLink = document.querySelector('a.button.secondary[href^="/competitions?id="]')?.getAttribute("href");
+    const eventCount = document.querySelectorAll("table tbody tr").length;
+
+    return {
+      competitionName,
+      openLink,
+      eventCount,
+    };
+  });
+
+  if (!importState.openLink || !importState.competitionName) {
+    throw new Error("Import result did not expose a competition workspace link");
+  }
+
+  if (importState.eventCount < 1) {
+    throw new Error("Import review did not render any event coverage rows");
+  }
+
+  await goto(importState.openLink);
+  await waitForText(importState.competitionName);
+
+  const firstAthleteHref = await page.evaluate(() => {
+    const athleteLink = document.querySelector('a[href^="/athletes/"]');
+    return athleteLink?.getAttribute("href") || null;
+  });
+
+  if (!firstAthleteHref) {
+    throw new Error("Competition workspace did not expose an athlete link");
+  }
+
+  await goto(firstAthleteHref);
+  await waitForText("Quick paths");
+
+  const techniqueHref = await page.evaluate(() => {
+    const link = [...document.querySelectorAll('a.context-link-card')].find((element) =>
+      element.textContent?.includes("Technique"),
+    );
+    return link?.getAttribute("href") || null;
+  });
+
+  if (!techniqueHref) {
+    throw new Error("Athlete profile did not expose the technique workspace");
+  }
+
+  await goto(techniqueHref);
+  await waitForText("Dive groups");
+  await waitForText("Recent technical log");
+
+  const techniqueState = await page.evaluate(() => ({
+    breadcrumb: document.querySelector(".breadcrumb-trail")?.textContent?.replace(/\s+/g, " ").trim() || "",
+    groupCount: document.querySelectorAll(".group-card").length,
+    firstCodeRow: document.querySelector("table.table-clickable tbody tr td strong")?.textContent?.trim() || null,
+  }));
+
+  if (techniqueState.groupCount < 1 || !techniqueState.firstCodeRow) {
+    throw new Error("Technique workspace did not render dive-group analytics");
+  }
 
   if (errors.length > 0) {
     throw new Error(errors.join("\n"));
   }
 
   console.log("Smoke test passed");
-  console.log(JSON.stringify({ webBaseUrl, requests }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        webBaseUrl,
+        competitionName: importState.competitionName,
+        importLink: importState.openLink,
+        firstAthleteHref,
+        techniqueHref,
+        techniqueState,
+        requests,
+      },
+      null,
+      2,
+    ),
+  );
 } finally {
   await browser.close();
 }
