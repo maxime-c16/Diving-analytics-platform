@@ -327,7 +327,7 @@ export function AthleteTechniqueView(props: {
       <section className="panel">
         <div className="section-head">
           <h2>Dive groups</h2>
-          <span className="muted">Official group families from the World Aquatics dive-code structure</span>
+          <span className="muted">Official dive groups from the World Aquatics code structure</span>
         </div>
         <div className="group-card-grid">
           {groupCards.map((group) => (
@@ -343,8 +343,7 @@ export function AthleteTechniqueView(props: {
             >
               <div className="group-card-head">
                 <div>
-                  <strong>{group.shortLabel}</strong>
-                  <div className="muted">{group.label}</div>
+                  <strong>{group.label}</strong>
                 </div>
                 <span>{group.share}%</span>
               </div>
@@ -476,9 +475,7 @@ export function AthleteTechniqueView(props: {
               <div className="stack compact-stack">
                 <div className="list-item compact-item">
                   <strong>Official group</strong>
-                  <div className="muted">
-                    {selectedGroupCard.shortLabel} · {selectedGroupCard.description}
-                  </div>
+                  <div className="muted">{selectedGroupCard.label}</div>
                 </div>
                 <div className="list-item compact-item">
                   <strong>Group share</strong>
