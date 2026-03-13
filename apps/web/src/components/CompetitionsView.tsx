@@ -160,6 +160,7 @@ export function CompetitionsView(props: {
   initialDetail?: CompetitionDetailResponse | null;
 }) {
   const [competitionId, setCompetitionId] = useState("");
+  const [workspaceMode, setWorkspaceMode] = useState("summary");
   const [selectedEvent, setSelectedEvent] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState("");
   const [selectedDiveId, setSelectedDiveId] = useState("");
@@ -174,6 +175,8 @@ export function CompetitionsView(props: {
 
   useEffect(() => {
     setCompetitionId(readQueryParam("id"));
+    const requestedView = readQueryParam("view");
+    setWorkspaceMode(requestedView ? "detailed" : "summary");
     setSelectedEvent(readQueryParam("event"));
     setSelectedEntryId(readQueryParam("entry"));
     setSelectedDiveId(readQueryParam("dive"));
@@ -225,6 +228,7 @@ export function CompetitionsView(props: {
             writeQueryParam("dive", "");
           } else {
             const requestedView = readQueryParam("view");
+            setWorkspaceMode("detailed");
             setAnalysisView(requestedView === "athlete" ? "athlete" : "ledger");
             if (focusedDive.eventName && focusedDive.eventName !== currentEvent) {
               setSelectedEvent(focusedDive.eventName);
@@ -417,6 +421,7 @@ export function CompetitionsView(props: {
     setSelectedDiveId("");
     setSelectedClub("");
     setAnalysisView("overview");
+    setWorkspaceMode("summary");
     writeQueryParam("id", value);
     writeQueryParam("club", "");
     writeQueryParam("dive", "");
@@ -428,6 +433,7 @@ export function CompetitionsView(props: {
     setSelectedEntryId("");
     setSelectedDiveId("");
     setAnalysisView("overview");
+    setWorkspaceMode("summary");
     writeQueryParam("event", eventName);
     writeQueryParam("entry", "");
     writeQueryParam("dive", "");
@@ -440,6 +446,7 @@ export function CompetitionsView(props: {
     setSelectedDiveId("");
     setSelectedClub("");
     setAnalysisView("athlete");
+    setWorkspaceMode("detailed");
     writeQueryParam("entry", value);
     writeQueryParam("dive", "");
     writeQueryParam("club", "");
@@ -451,6 +458,7 @@ export function CompetitionsView(props: {
     setSelectedEntryId("");
     setSelectedDiveId("");
     setAnalysisView("club");
+    setWorkspaceMode("detailed");
     writeQueryParam("club", clubName);
     writeQueryParam("entry", "");
     writeQueryParam("dive", "");
@@ -553,6 +561,15 @@ export function CompetitionsView(props: {
     : [];
   const competitionContextLabel =
     detail && eventScoped ? `${detail.competition.name} / ${eventScoped.currentEvent}` : "Competition workspace";
+  const leaderEntry = eventScoped?.entries[0] || null;
+  const secondEntry = eventScoped?.entries[1] || null;
+  const leadingClub = eventScoped?.eventClubs[0] || null;
+  const eventPressureNote =
+    leaderEntry && secondEntry && typeof leaderEntry.finalTotal === "number" && typeof secondEntry.finalTotal === "number"
+      ? leaderEntry.finalTotal - secondEntry.finalTotal <= 12
+        ? "Tight field at the top of this event."
+        : "Clear separation at the top of this event."
+      : "Not enough ranked entries to assess separation.";
 
   return (
     <div className="page-grid">
@@ -613,6 +630,212 @@ export function CompetitionsView(props: {
             </div>
           </section>
 
+          <section className="panel mode-panel">
+            <div className="section-head">
+              <h2>Competition workspace mode</h2>
+              <span className="muted">Start with the event brief, then expand into the full analysis workspace</span>
+            </div>
+            <div className="toolbar">
+              <button className="button secondary" data-active={workspaceMode === "summary"} onClick={() => setWorkspaceMode("summary")} type="button">
+                Summary
+              </button>
+              <button className="button secondary" data-active={workspaceMode === "detailed"} onClick={() => setWorkspaceMode("detailed")} type="button">
+                Detailed analysis
+              </button>
+            </div>
+          </section>
+
+          <section className="two-column">
+            <div className="panel">
+              <div className="section-head">
+                <h2>Competition brief</h2>
+                <span className="muted">What happened in the selected event and where to review it next</span>
+              </div>
+              <div className="stack compact-stack">
+                <div className="list-item compact-item">
+                  <strong>Selected event</strong>
+                  <div className="muted">
+                    {eventScoped.currentEvent} · {eventScoped.isSynchro ? "Synchro" : "Individual"} · winning total {formatScore(eventScoped.eventSummary?.winningScore || null)}
+                  </div>
+                </div>
+                <div className="list-item compact-item">
+                  <strong>Current leader</strong>
+                  <div className="muted">
+                    {leaderEntry
+                      ? `${leaderEntry.entryName} · ${rankLabel(leaderEntry.rank)} · total ${formatScore(leaderEntry.finalTotal)}`
+                      : "No ranked entry recorded"}
+                  </div>
+                </div>
+                <div className="list-item compact-item">
+                  <strong>Most-used dive code</strong>
+                  <div className="muted">
+                    {eventScoped.diveCodeBreakdown[0]
+                      ? `${eventScoped.diveCodeBreakdown[0].diveCode} · ${eventScoped.diveCodeBreakdown[0].count} uses`
+                      : "No dive-code pattern recorded"}
+                  </div>
+                </div>
+                <div className="list-item compact-item">
+                  <strong>Field pressure</strong>
+                  <div className="muted">{eventPressureNote}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="section-head">
+                <h2>Coach interpretation</h2>
+                <span className="muted">A quick read before opening the deeper result tables</span>
+              </div>
+              <div className="coach-grid">
+                <div className="coach-card">
+                  <strong>Leader</strong>
+                  <span>{leaderEntry?.entryName || "n/a"}</span>
+                  <small>{leaderEntry ? `${leaderEntry.diveCount} dives · best dive ${formatScore(leaderEntry.bestDive)}` : "No ranked entry"}</small>
+                </div>
+                <div className="coach-card">
+                  <strong>Event depth</strong>
+                  <span>{eventScoped.entries.length} entries</span>
+                  <small>{eventScoped.diveCodeBreakdown.length} tracked dive codes in this event</small>
+                </div>
+                <div className="coach-card">
+                  <strong>Leading club signal</strong>
+                  <span>{leadingClub || "n/a"}</span>
+                  <small>{eventScoped.eventClubs.length} clubs represented in the selected event</small>
+                </div>
+                <div className="coach-card coach-card-warning">
+                  <strong>Needs review</strong>
+                  <span>{eventScoped.diveCodeBreakdown[0]?.diveCode || "No dive-code alert"}</span>
+                  <small>
+                    {eventScoped.diveCodeBreakdown[0]
+                      ? `${eventScoped.diveCodeBreakdown[0].count} repeated uses make this code worth reviewing in context`
+                      : "No repeated code pattern detected"}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel context-panel">
+            <div className="section-head">
+              <h2>Next actions</h2>
+              <span className="muted">Open the most useful review path instead of starting from the full table stack</span>
+            </div>
+            <div className="context-links">
+              {leaderEntry ? (
+                <a
+                  className="context-link-card"
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setWorkspaceMode("detailed");
+                    openEntryInEvent(leaderEntry.id);
+                  }}
+                >
+                  <strong>Review leader</strong>
+                  <span>{leaderEntry.entryName}</span>
+                </a>
+              ) : null}
+              <a
+                className="context-link-card"
+                href="#"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setWorkspaceMode("detailed");
+                  setAnalysisView("overview");
+                  writeQueryParam("view", "overview");
+                }}
+              >
+                <strong>Open event overview</strong>
+                <span>{eventScoped.currentEvent}</span>
+              </a>
+              {leaderEntry ? (
+                <a
+                  className="context-link-card"
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setWorkspaceMode("detailed");
+                    setAnalysisView("ledger");
+                    writeQueryParam("view", "ledger");
+                  }}
+                >
+                  <strong>Open all dives</strong>
+                  <span>Review the full event dive log</span>
+                </a>
+              ) : null}
+              {leadingClub ? (
+                <a
+                  className="context-link-card"
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setWorkspaceMode("detailed");
+                    openClubFocus(leadingClub);
+                  }}
+                >
+                  <strong>Open club focus</strong>
+                  <span>{leadingClub}</span>
+                </a>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="profile-grid">
+            <div className="panel">
+              <h2>Event spotlight</h2>
+              <div className="stack compact-stack">
+                {eventScoped.entries.slice(0, 4).map((entry) => (
+                  <a
+                    className="list-item compact-item"
+                    href="#"
+                    key={entry.id}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setWorkspaceMode("detailed");
+                      openEntryInEvent(entry.id);
+                    }}
+                  >
+                    <div className="between-row">
+                      <div className="competition-history-main">
+                        <span className={`rank-mark rank-${entry.rank || "other"}`}>
+                          <span className="rank-mark-glyph" aria-hidden="true">
+                            {rankGlyph(entry.rank)}
+                          </span>
+                          <span>{rankLabel(entry.rank)}</span>
+                        </span>
+                        <strong>{entry.entryName}</strong>
+                      </div>
+                      <span>{formatScore(entry.finalTotal)}</span>
+                    </div>
+                    <div className="muted" style={{ marginTop: 6 }}>
+                      {entry.diveCount} dives · best dive {formatScore(entry.bestDive)}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div className="panel">
+              <h2>Event navigator</h2>
+              <div className="focus-entry-list">
+                {detail.eventSummaries.slice(0, 8).map((event) => (
+                  <button
+                    className="focus-entry-item"
+                    data-active={event.eventName === eventScoped.currentEvent}
+                    key={event.eventName}
+                    onClick={() => openEvent(event.eventName)}
+                    type="button"
+                  >
+                    <strong>{event.eventName}</strong>
+                    <span>
+                      {event.athleteCount} {event.eventType === "synchro" ? "entries" : "athletes"} · {event.diveCount} dives
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
           <section className="panel">
             <h2>Competition workspace</h2>
             {workspaceCrumbs.length > 0 ? (
@@ -635,6 +858,7 @@ export function CompetitionsView(props: {
                 ))}
               </div>
             ) : null}
+            {workspaceMode === "detailed" ? (
             <div className="analysis-layout">
               <div className="analysis-rail">
                 <div className="rail-block">
@@ -1217,6 +1441,7 @@ export function CompetitionsView(props: {
                 </div>
               </div>
             </div>
+            ) : null}
           </section>
         </>
       ) : null}

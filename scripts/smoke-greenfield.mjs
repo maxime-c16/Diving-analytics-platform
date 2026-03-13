@@ -75,6 +75,8 @@ try {
 
   await goto(importState.openLink);
   await waitForText(importState.competitionName);
+  await page.click('button:has-text("Detailed analysis")');
+  await waitForText("Competition workspace");
 
   const firstAthleteHref = await page.evaluate(() => {
     const athleteLink = document.querySelector('a[href^="/athletes/"]');
