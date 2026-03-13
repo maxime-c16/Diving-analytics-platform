@@ -1,9 +1,11 @@
 import path from "node:path";
+import { readFile } from "node:fs/promises";
 import playwright from "../apps/web/node_modules/playwright/index.js";
 
 const { chromium } = playwright;
 
 const webBaseUrl = process.env.WEB_BASE_URL || "http://127.0.0.1:4100";
+const apiBaseUrl = process.env.API_BASE_URL || "http://127.0.0.1:4101";
 const pdfPath =
   process.env.SMOKE_PDF ||
   path.resolve("20251123 Championnats IDF hiver 3m-HV - Résultats détaillés.pdf");
@@ -37,34 +39,39 @@ async function waitForText(text, timeout = 20000) {
   await page.waitForSelector(`text=${text}`, { timeout });
 }
 
-try {
-  await goto("/upload");
-  await page.setInputFiles('input[type="file"]', pdfPath);
-  await page.click('button[type="submit"]');
+async function importFixtureCompetition() {
+  const form = new FormData();
+  const buffer = await readFile(pdfPath);
+  form.set("file", new Blob([buffer], { type: "application/pdf" }), path.basename(pdfPath));
 
-  await waitForText("Intake review");
-  await waitForText("Imported event program");
-
-  const importState = await page.evaluate(() => {
-    const competitionName =
-      document.querySelector(".metrics .metric strong")?.textContent?.trim() || null;
-    const openLink = document.querySelector('a.button.secondary[href^="/competitions?id="]')?.getAttribute("href");
-    const eventCount = document.querySelectorAll("table tbody tr").length;
-
-    return {
-      competitionName,
-      openLink,
-      eventCount,
-    };
+  const response = await fetch(`${apiBaseUrl}/ingestions/pdf`, {
+    method: "POST",
+    body: form,
   });
 
-  if (!importState.openLink || !importState.competitionName) {
-    throw new Error("Import result did not expose a competition workspace link");
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      `Fixture import failed (${response.status}): ${payload.error || JSON.stringify(payload)}`,
+    );
   }
 
-  if (importState.eventCount < 1) {
-    throw new Error("Import review did not render any event coverage rows");
+  if (!payload.competitionId || !payload.extraction?.competitionName) {
+    throw new Error("Fixture import did not return a valid competition payload");
   }
+
+  return payload;
+}
+
+try {
+  const importResult = await importFixtureCompetition();
+  const importState = {
+    competitionName: importResult.extraction.competitionName,
+    openLink: `/competitions?id=${importResult.competitionId}`,
+  };
+
+  await goto("/upload");
+  await waitForText("Ingest an official result sheet");
 
   await goto(importState.openLink);
   await waitForText(importState.competitionName);
@@ -115,6 +122,7 @@ try {
     JSON.stringify(
       {
         webBaseUrl,
+        apiBaseUrl,
         competitionName: importState.competitionName,
         importLink: importState.openLink,
         firstAthleteHref,
