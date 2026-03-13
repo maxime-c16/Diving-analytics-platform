@@ -1,0 +1,21 @@
+{
+  "name": "@diving/promo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts DivingAnalyticsCommercial out/diving-analytics-commercial.mp4",
+    "still": "remotion still src/index.ts DivingAnalyticsPoster out/diving-analytics-poster.png"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "remotion": "^4.0.366"
+  },
+  "devDependencies": {
+    "@remotion/cli": "^4.0.366",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "typescript": "^5.9.3"
+  }
+}

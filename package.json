@@ -7,9 +7,11 @@
   ],
   "scripts": {
     "dev:api": "cd apps/api && bun run dev",
+    "dev:promo": "cd apps/promo && bun run dev",
     "dev:web": "cd apps/web && bun run dev",
     "build:web": "cd apps/web && bun run build",
     "check:web": "cd apps/web && bun run astro check",
+    "render:promo": "cd apps/promo && bun run render",
     "smoke:web": "node scripts/smoke-greenfield.mjs",
     "smoke:greenfield": "node scripts/smoke-greenfield.mjs"
   }

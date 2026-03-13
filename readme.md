@@ -18,6 +18,7 @@ The current application lives under `apps/api` and `apps/web`. The older `backen
 
 ### Repository Layout
 - [`apps/api`](apps/api): Bun HTTP API, SQLite access, analytics aggregation, import pipeline
+- [`apps/promo`](apps/promo): Remotion commercial presentation workspace
 - [`apps/web`](apps/web): Astro shell with React views and client-side navigation
 - [`worker/extract_pdf.py`](worker/extract_pdf.py): PDF extraction entrypoint
 - [`scripts/smoke-greenfield.mjs`](scripts/smoke-greenfield.mjs): browser smoke test used locally and in CI
@@ -26,6 +27,7 @@ The current application lives under `apps/api` and `apps/web`. The older `backen
 ```bash
 bun install
 bun run dev:api
+bun run dev:promo
 bun run dev:web
 ```
 
@@ -132,6 +134,11 @@ bun run check:web
 bun run smoke:web
 python3 -m py_compile worker/extract_pdf.py
 ```
+
+### Commercial Presentation
+- Remotion workspace: [`apps/promo`](apps/promo)
+- Preview locally with `bun run dev:promo`
+- Render the commercial with `bun run render:promo`
 
 The smoke flow validates the live navigation path through the running app, including profile and competition deep-link behavior.
 
